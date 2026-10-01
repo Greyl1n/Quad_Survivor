@@ -317,16 +317,18 @@ You can play **Quad Survivor** directly in any modern desktop or mobile web brow
    ```
    Open `http://localhost:8000` in your web browser. Supports full desktop keyboard/mouse and mobile touch emulation.
 
-### Desktop (Python)
+### Desktop (Python / Windows)
 Make sure you have Python 3.10+ installed with `pygame`:
 
-```bash
-# From workspace root
-python run_game.py
+- **Windows 1-Click Launch**: Double-click [`run_game.bat`](run_game.bat)
+- **Command Line**:
+  ```bash
+  # From workspace root
+  python run_game.py
 
-# Or directly from Source
-python Source/main.py
-```
+  # Or directly from Source
+  python Source/main.py
+  ```
 
 ### Android APK
 Install `QuadSurvivor.apk` onto any Android phone, tablet, or emulator running Android 8.0+ (API level 26+).
