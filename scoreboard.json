@@ -1,0 +1,141 @@
+[
+  {
+    "id": "starter_1",
+    "time": 215.4,
+    "time_str": "03:35",
+    "level": 9,
+    "kills": 384,
+    "damage_taken": 160,
+    "genome": "CYBER-MATRIX",
+    "date": "2026-09-28 18:30",
+    "initials": "AAA"
+  },
+  {
+    "id": "starter_2",
+    "time": 154.2,
+    "time_str": "02:34",
+    "level": 6,
+    "kills": 218,
+    "damage_taken": 220,
+    "genome": "SOLAR-FLARE",
+    "date": "2026-09-29 11:15",
+    "initials": "AAA"
+  },
+  {
+    "id": "run_20261001_133212_8",
+    "initials": "MMH",
+    "time": 131.8,
+    "time_str": "02:11",
+    "level": 8,
+    "kills": 222,
+    "damage_taken": 212,
+    "genome": "HYPER-NEON",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 13:32"
+  },
+  {
+    "id": "run_20260930_131449_4",
+    "time": 98.6,
+    "time_str": "01:38",
+    "level": 5,
+    "kills": 136,
+    "damage_taken": 158,
+    "genome": "VOID-ABYSS",
+    "date": "2026-09-30 13:14",
+    "initials": "AAA"
+  },
+  {
+    "id": "run_20261001_133512_9",
+    "initials": "MMH",
+    "time": 91.0,
+    "time_str": "01:30",
+    "level": 5,
+    "kills": 174,
+    "damage_taken": 178,
+    "genome": "TOXIC-OVERGROWTH",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 13:35"
+  },
+  {
+    "id": "starter_3",
+    "time": 88.0,
+    "time_str": "01:28",
+    "level": 4,
+    "kills": 105,
+    "damage_taken": 140,
+    "genome": "VOID-ABYSS",
+    "date": "2026-09-29 14:40",
+    "initials": "AAA"
+  },
+  {
+    "id": "run_20261001_204337_11",
+    "initials": "AAA",
+    "time": 66.8,
+    "time_str": "01:06",
+    "level": 6,
+    "kills": 122,
+    "damage_taken": 124,
+    "genome": "CYBER-MATRIX",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 20:43"
+  },
+  {
+    "id": "run_20261001_134901_10",
+    "initials": "AAA",
+    "time": 66.1,
+    "time_str": "01:06",
+    "level": 5,
+    "kills": 91,
+    "damage_taken": 134,
+    "genome": "HYPER-NEON",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 13:49"
+  },
+  {
+    "id": "run_20261001_132920_7",
+    "initials": "MMH",
+    "time": 64.3,
+    "time_str": "01:04",
+    "level": 4,
+    "kills": 46,
+    "damage_taken": 138,
+    "genome": "HYPER-NEON",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 13:29"
+  },
+  {
+    "id": "run_20261001_082156_6",
+    "initials": "BAA",
+    "time": 0.0,
+    "time_str": "00:00",
+    "level": 1,
+    "kills": 0,
+    "damage_taken": 12,
+    "genome": "CYBER-MATRIX",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 08:21"
+  },
+  {
+    "id": "run_20260930_131036_3",
+    "time": 0.0,
+    "time_str": "00:00",
+    "level": 1,
+    "kills": 0,
+    "damage_taken": 1024,
+    "genome": "CYBER-MATRIX",
+    "date": "2026-09-30 13:10",
+    "initials": "AAA"
+  },
+  {
+    "id": "run_20261001_082127_5",
+    "initials": "BAA",
+    "time": 0.0,
+    "time_str": "00:00",
+    "level": 1,
+    "kills": 0,
+    "damage_taken": 9999,
+    "genome": "CYBER-MATRIX",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 08:21"
+  }
+]
