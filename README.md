@@ -82,6 +82,29 @@ Periodically, a swirling **Dimensional Portal Anomaly** will appear in the world
 
 ---
 
+## 👑 Apex Boss Dimension: The Octagon Overlord
+
+Every **3 completed genomes** (e.g. Dimensions 3, 6, 9...), stepping into the Dimensional Portal warps the Quad Core into an enclosed **Dedicated Boss Level**:
+
+- **Arena: The Enclosed Octagon Sanctuary**:
+  - A massive 8-sided containment arena ($R = 950\text{px}$) with impenetrable forcefields and 8 perimeter emitter nodes.
+  - **4 Tactical Energy Pillars**: Symmetrically placed in the 4 quadrants ($X \pm 310, Y \pm 310$) with heavy armor and energy cores.
+  - **Cover Mechanics**: The 4 pillars block and absorb boss attacks, providing vital cover for dodging and kiting!
+- **The Boss: Apex Octagon Overlord** *(From blueprint sketch)*:
+  - **Chassis**: Heavy octagonal armored fortress with a pulsing circular core eye.
+  - **8 Floating Spikes/Fins**: 8 independent kinetic spikes orbiting and floating outwards around each facet of the chassis.
+  - **Attack Arsenal**:
+    - **Aimed Orb Volley**: Fires rapid bursts of heavy round energy projectiles directly toward the player's position.
+    - **Octa-Nova Blast**: Fires an 8-way radial barrage of high-velocity energy spheres aligned with its 8 outer spikes.
+    - **Spiral Stream**: Sweeps a continuous helical wave of round projectiles that forces circling maneuvers.
+  - **XP Reinforcements**: Periodically summons 3–4 yellow square Swarm Mites (`_summon_yellow_squares`), ensuring the player has a steady supply of XP gems to replenish levels and health during the protracted battle.
+- **Victory & Rewards**:
+  - Defeating the Apex Octagon Overlord (or standard survival Colossus Bosses) drops a guaranteed **⚡ Overclock Matrix**: an energetic cyan crystal cube that instantly upgrades one of your equipped weapons to its next level! If all equipped weapons are already maxed, it awards a bonus core level up.
+  - Also drops a guaranteed **Hyper Core (🌟)** (+10% permanent stacking damage to all weapons), a full **Health Restoration Pack**, and a cluster of **10 Large XP Gems**.
+  - A central **Gateway Portal** manifests in the arena center, allowing the Quad Core to warp back into dimensional progression!
+
+---
+
 ## 📈 Leveling & Dynamic Difficulty Scaling
 
 - **Level Persistence**: Your Quad Core level, XP progress, and active weapon levels persist seamlessly through Dimensional Portals and across all genome shifts.
@@ -142,9 +165,9 @@ Choose your preferred challenge level right from the Title Screen before launchi
 
 | Difficulty | Enemy HP | Enemy Speed | Enemy Damage | Spawn Interval | Magnet Radius | Description |
 |---|---|---|---|---|---|---|
-| **EASY** (`[EASY]`) | **0.70x** (-30%) | **0.85x** (-15%) | **0.75x** (-25%) | **1.25x** (slower) | **+30px** | Relaxed swarm balance. Slower spawns, reduced damage, and larger pickup field for casual horde clearing. |
-| **NORMAL** (`[NORM]`) | **1.00x** (baseline) | **1.00x** | **1.00x** | **1.00x** | **Baseline** | Authentic roguelite survivor balance. Standard horde density and damage output. |
-| **HARD** (`[HARD]`) | **1.38x** (+38%) | **1.15x** (+15%) | **1.30x** (+30%) | **0.82x** (faster) | **-15px** | Relentless horde! Aggressive high-density spawns, fast kiting requirements, and brutal enemy strikes. |
+| **EASY** (`[EASY]`) | **0.55x** (-45%) | **0.78x** (-22%) | **0.60x** (-40%) | **1.60x** (+60% slower) | **+45px** | Relaxed swarm balance. Gentle spawn pacing, reduced enemy HP and damage, and high magnet reach. |
+| **NORMAL** (`[NORM]`) | **0.88x** (-12%) | **0.95x** (-5%) | **0.90x** (-10%) | **1.22x** (+22% slower) | **+10px** | Balanced roguelite survivor pacing. Smooth horde ramp and fair wave pressure. |
+| **HARD** (`[HARD]`) | **1.25x** (+25%) | **1.10x** (+10%) | **1.18x** (+18%) | **0.95x** (faster) | **-5px** | High intensity swarm! Fast kiting requirements, aggressive spawns, and heavy strike damage. |
 
 - **Selection Controls**: Tap the difficulty cards on the Title screen, or use keyboard keys **[1]**, **[2]**, **[3]**.
 - **HUD & Leaderboards**: The active difficulty badge (`[EASY]`, `[NORM]`, `[HARD]`) is displayed on the in-game HUD and recorded in the Global Scoreboard tables.

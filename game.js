@@ -64,25 +64,25 @@
       tag: 'EASY',
       color: '#50ff8c',
       border_color: '#1eb450',
-      hp_mult: 0.70,
-      speed_mult: 0.85,
-      dmg_mult: 0.75,
-      threat_mult: 0.75,
-      spawn_interval_mult: 1.25,
-      magnet_bonus: 30.0,
-      desc: 'Relaxed swarm. -30% Enemy HP & Dmg, slower spawns.'
+      hp_mult: 0.55,
+      speed_mult: 0.78,
+      dmg_mult: 0.60,
+      threat_mult: 0.55,
+      spawn_interval_mult: 1.60,
+      magnet_bonus: 45.0,
+      desc: 'Relaxed swarm. -45% Enemy HP & Threat, -40% Dmg, gentle spawns.'
     },
     NORMAL: {
       name: 'NORMAL',
       tag: 'NORM',
       color: '#00f0dc',
       border_color: '#00b4a0',
-      hp_mult: 1.0,
-      speed_mult: 1.0,
-      dmg_mult: 1.0,
-      threat_mult: 1.0,
-      spawn_interval_mult: 1.0,
-      magnet_bonus: 0.0,
+      hp_mult: 0.88,
+      speed_mult: 0.95,
+      dmg_mult: 0.90,
+      threat_mult: 0.85,
+      spawn_interval_mult: 1.22,
+      magnet_bonus: 10.0,
       desc: 'Standard authentic roguelite survivor balance.'
     },
     HARD: {
@@ -90,13 +90,13 @@
       tag: 'HARD',
       color: '#ff4b4b',
       border_color: '#c82828',
-      hp_mult: 1.38,
-      speed_mult: 1.15,
-      dmg_mult: 1.30,
-      threat_mult: 1.35,
-      spawn_interval_mult: 0.82,
-      magnet_bonus: -15.0,
-      desc: 'Relentless horde! +38% Enemy HP, +15% Speed, high fury.'
+      hp_mult: 1.25,
+      speed_mult: 1.10,
+      dmg_mult: 1.18,
+      threat_mult: 1.15,
+      spawn_interval_mult: 0.95,
+      magnet_bonus: -5.0,
+      desc: 'Relentless horde! +25% Enemy HP, +10% Speed, high challenge.'
     }
   };
 
@@ -1194,11 +1194,62 @@
   class ObstacleManager {
     constructor(genome, px, py) {
       this.obstacles = [];
+      this.isBossArena = false;
+      this.bossArenaCenter = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 };
+      this.bossArenaRadius = 950;
+      this.bossArenaD = 950 * Math.cos(Math.PI / 8);
+      this.bossNormals = [];
+      for (let k = 0; k < 8; k++) {
+        this.bossNormals.push({
+          x: Math.cos((k * Math.PI) / 4),
+          y: Math.sin((k * Math.PI) / 4)
+        });
+      }
+      this.bossVertices = [];
+      for (let k = 0; k < 8; k++) {
+        const a = Math.PI / 8 + (k * Math.PI) / 4;
+        this.bossVertices.push({
+          x: this.bossArenaCenter.x + this.bossArenaRadius * Math.cos(a),
+          y: this.bossArenaCenter.y + this.bossArenaRadius * Math.sin(a)
+        });
+      }
       this.generate(px, py, genome);
+    }
+
+    generateBossOctagon(cx, cy, genome) {
+      this.obstacles = [];
+      this.isBossArena = true;
+      this.bossArenaCenter = { x: cx, y: cy };
+      this.bossArenaRadius = 950;
+      this.bossArenaD = 950 * Math.cos(Math.PI / 8);
+
+      this.bossVertices = [];
+      for (let k = 0; k < 8; k++) {
+        const a = Math.PI / 8 + (k * Math.PI) / 4;
+        this.bossVertices.push({
+          x: cx + this.bossArenaRadius * Math.cos(a),
+          y: cy + this.bossArenaRadius * Math.sin(a)
+        });
+      }
+
+      // 4 Pillars in 4 quadrants (matching user's sketch)
+      const pDist = 310;
+      const pRadius = 54;
+      for (const dx of [-pDist, pDist]) {
+        for (const dy of [-pDist, pDist]) {
+          this.obstacles.push({
+            type: 'circle',
+            x: cx + dx,
+            y: cy + dy,
+            r: pRadius
+          });
+        }
+      }
     }
 
     generate(safeX, safeY, genome) {
       this.obstacles = [];
+      this.isBossArena = false;
       const safeRadius = 240;
 
       // 1. Monolith Blocks
@@ -1243,6 +1294,19 @@
       let curY = y;
       let hitAny = false;
 
+      if (this.isBossArena) {
+        const maxDist = this.bossArenaD - radius;
+        for (const n of this.bossNormals) {
+          const proj = (curX - this.bossArenaCenter.x) * n.x + (curY - this.bossArenaCenter.y) * n.y;
+          if (proj > maxDist) {
+            const overlap = proj - maxDist;
+            curX -= n.x * overlap;
+            curY -= n.y * overlap;
+            hitAny = true;
+          }
+        }
+      }
+
       for (const obs of this.obstacles) {
         if (obs.type === 'rect') {
           const cx = Math.max(obs.x, Math.min(curX, obs.x + obs.w));
@@ -1280,6 +1344,16 @@
 
     checkProjectileCollision(p) {
       const r = (p.size || 12) / 2;
+
+      if (this.isBossArena) {
+        for (const n of this.bossNormals) {
+          const proj = (p.x - this.bossArenaCenter.x) * n.x + (p.y - this.bossArenaCenter.y) * n.y;
+          if (proj >= this.bossArenaD - r) {
+            return { hit: true, nx: -n.x, ny: -n.y };
+          }
+        }
+      }
+
       for (const obs of this.obstacles) {
         if (obs.type === 'rect') {
           if (p.x + r < obs.x || p.x - r > obs.x + obs.w ||
@@ -1311,6 +1385,74 @@
     }
 
     draw(ctx, cam, genome) {
+      if (this.isBossArena) {
+        if (cam.isVisible(this.bossArenaCenter.x, this.bossArenaCenter.y, this.bossArenaRadius + 60)) {
+          const scx = cam.worldToScreenX(this.bossArenaCenter.x);
+          const scy = cam.worldToScreenY(this.bossArenaCenter.y);
+          const screenPts = this.bossVertices.map(v => ({
+            x: cam.worldToScreenX(v.x),
+            y: cam.worldToScreenY(v.y)
+          }));
+
+          ctx.save();
+          // Floor fill
+          ctx.fillStyle = '#0e0c16';
+          ctx.beginPath();
+          screenPts.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.closePath();
+          ctx.fill();
+
+          // Concentric tech rings
+          ctx.strokeStyle = 'rgba(180, 20, 70, 0.35)';
+          ctx.lineWidth = 1.5;
+          for (const rFrac of [0.28, 0.55, 0.82]) {
+            ctx.beginPath();
+            ctx.arc(scx, scy, this.bossArenaRadius * rFrac * cam.zoom, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Radial circuit lines
+          for (const pt of screenPts) {
+            ctx.beginPath();
+            ctx.moveTo(scx, scy);
+            ctx.lineTo(pt.x, pt.y);
+            ctx.stroke();
+          }
+
+          // Perimeter barrier forcefield
+          ctx.strokeStyle = '#b41446';
+          ctx.lineWidth = Math.max(2, 6 * cam.zoom);
+          ctx.beginPath();
+          screenPts.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.closePath();
+          ctx.stroke();
+
+          ctx.strokeStyle = '#ff2d5f';
+          ctx.lineWidth = Math.max(1, 3 * cam.zoom);
+          ctx.stroke();
+
+          // Corner pylon emitter nodes
+          const nodeR = Math.max(4, 9 * cam.zoom);
+          for (const pt of screenPts) {
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, nodeR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, nodeR * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
       for (const obs of this.obstacles) {
         if (obs.type === 'rect') {
           if (!cam.isVisible(obs.x + obs.w / 2, obs.y + obs.h / 2, Math.max(obs.w, obs.h))) continue;
@@ -1550,6 +1692,25 @@
         particles.spawnShockwave(player.x, player.y, 130, '#fff050');
         particles.spawnText(player.x, player.y - 28, '+10% ALL WEAPON DAMAGE!', '#fff050', 2.5, true);
         audio.play('hyper_pickup', 1.0);
+      } else if (this.type === 'forge_tome') {
+        // Boss Reward: Overclocks and upgrades an active equipped weapon!
+        const upgradable = (player.weapons || []).filter(w => w.unlocked && w.level < w.maxLevel);
+        if (upgradable.length > 0) {
+          const chosen = upgradable[Math.floor(Math.random() * upgradable.length)];
+          chosen.upgrade();
+          const wName = (chosen.name || 'Weapon').toUpperCase();
+          const wCol = chosen.color || '#8cf0ff';
+          particles.spawnShockwave(player.x, player.y, 180, wCol);
+          particles.spawnText(player.x, player.y - 42, `⚡ ${wName} UPGRADED TO LV ${chosen.level}!`, wCol, 3.2, true);
+          audio.play('slash', 1.0);
+          audio.play('gem', 1.0);
+        } else {
+          player.pendingLevelUps++;
+          particles.spawnShockwave(player.x, player.y, 150, '#8cf0ff');
+          particles.spawnText(player.x, player.y - 42, '⚡ CORE OVERCLOCKED: BONUS UPGRADE!', '#8cf0ff', 3.0, true);
+          audio.play('levelup', 1.0);
+          return true;
+        }
       }
       return false;
     }
@@ -1625,6 +1786,21 @@
         ctx.beginPath();
         ctx.arc(0, 0, 3, 0, Math.PI * 2);
         ctx.fill();
+      } else if (this.type === 'forge_tome') {
+        // Glowing cyan/white Overclock Matrix cube
+        ctx.translate(sx, sy);
+        ctx.rotate(this.spin);
+        const sz = 13 + Math.sin(this.spin * 2) * 2;
+        ctx.fillStyle = 'rgba(140, 240, 255, 0.4)';
+        ctx.fillRect(-sz / 2 - 2, -sz / 2 - 2, sz + 4, sz + 4);
+        ctx.fillStyle = '#8cf0ff';
+        ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(-sz / 2, -sz / 2, sz, sz);
+        ctx.fillStyle = '#ffffff';
+        const core = Math.max(3, sz * 0.45);
+        ctx.fillRect(-core / 2, -core / 2, core, core);
       }
       ctx.restore();
     }
@@ -2794,18 +2970,330 @@
     }
   }
 
+  // --- Boss Projectile (Round Energy Sphere from User's Sketch) ---
+  class BossProjectile {
+    constructor(x, y, vx, vy, damage = 22, radius = 12, color = '#ff2d5f') {
+      this.x = x;
+      this.y = y;
+      this.vx = vx;
+      this.vy = vy;
+      this.damage = damage;
+      this.radius = radius;
+      this.color = color;
+      this.alive = true;
+      this.life = 7.0;
+      this.pulse = Math.random() * Math.PI * 2;
+    }
+
+    update(dt) {
+      this.pulse += 7 * dt;
+      this.life -= dt;
+      if (this.life <= 0) {
+        this.alive = false;
+        return;
+      }
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+    }
+
+    draw(ctx, cam) {
+      if (!cam.isVisible(this.x, this.y, this.radius + 12)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+      const r = Math.max(2, this.radius * cam.zoom);
+
+      ctx.save();
+      // Outer aura
+      const haloR = r + (4 + 2 * Math.sin(this.pulse)) * cam.zoom;
+      ctx.fillStyle = 'rgba(255, 45, 95, 0.28)';
+      ctx.beginPath();
+      ctx.arc(sx, sy, haloR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Main circular projectile (shaded circle matching sketch)
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner glowing core
+      ctx.fillStyle = '#ffecf0';
+      ctx.beginPath();
+      ctx.arc(sx, sy, Math.max(1, r * 0.45), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // --- Octagon Boss (Apex Overlord from User's Sketch) ---
+  class OctagonBoss extends Enemy {
+    constructor(x, y, hpScale = 1) {
+      super(x, y, 1800 * hpScale, 65, 22, 58, '#ff2d5f', 120);
+      this.isBoss = true;
+      this.isOctagonBoss = true;
+      this.rot = 0;
+      this.spikePulse = 0;
+      this.eyePulse = 0;
+
+      this.attackTimer = 2.0;
+      this.attackPhase = 'idle';
+      this.phaseTimer = 0;
+      this.burstCount = 0;
+      this.spiralCount = 0;
+
+      this.summonTimer = 3.5;
+      this.chargeFlash = 0;
+    }
+
+    updateBoss(dt, player, obstacles, bossProjectiles, spawner, particles) {
+      super.update(dt, player, obstacles);
+      this.rot += 0.8 * dt;
+      this.spikePulse += 3.5 * dt;
+      this.eyePulse += 5.0 * dt;
+      if (this.chargeFlash > 0) {
+        this.chargeFlash = Math.max(0, this.chargeFlash - 2.5 * dt);
+      }
+
+      // 1. Summon yellow square enemies periodically ("time to time yellow square enemies are spawned to provide xp")
+      this.summonTimer -= dt;
+      if (this.summonTimer <= 0) {
+        this.summonTimer = 4.8 + Math.random() * 1.4;
+        this.summonYellowSquares(spawner, particles);
+      }
+
+      // 2. Attack state machine
+      this.attackTimer -= dt;
+      if (this.attackTimer <= 0 && this.attackPhase === 'idle') {
+        this.advanceAttack(player, bossProjectiles, particles);
+      }
+
+      if (this.attackPhase === 'burst') {
+        this.phaseTimer -= dt;
+        if (this.phaseTimer <= 0 && this.burstCount > 0) {
+          this.phaseTimer = 0.22;
+          this.burstCount--;
+          this.fireAimedOrb(player, bossProjectiles);
+          if (this.burstCount <= 0) {
+            this.attackPhase = 'idle';
+            this.attackTimer = 1.8 + Math.random() * 0.8;
+          }
+        }
+      } else if (this.attackPhase === 'spiral') {
+        this.phaseTimer -= dt;
+        this.rot += 3.5 * dt;
+        if (this.phaseTimer <= 0 && this.spiralCount > 0) {
+          this.phaseTimer = 0.13;
+          this.spiralCount--;
+          this.fireSpiralOrb(bossProjectiles);
+          if (this.spiralCount <= 0) {
+            this.attackPhase = 'idle';
+            this.attackTimer = 2.0 + Math.random() * 0.8;
+          }
+        }
+      }
+    }
+
+    update(dt, player, obstacles) {
+      this.updateBoss(dt, player, obstacles, null, null, null);
+    }
+
+    advanceAttack(player, bossProjectiles, particles) {
+      const choices = ['burst', 'nova', 'spiral'];
+      this.attackPhase = choices[Math.floor(Math.random() * choices.length)];
+      this.chargeFlash = 1.0;
+
+      if (this.attackPhase === 'burst') {
+        this.burstCount = 4;
+        this.phaseTimer = 0.05;
+      } else if (this.attackPhase === 'nova') {
+        this.fireOctaNova(bossProjectiles, particles);
+        this.attackPhase = 'idle';
+        this.attackTimer = 2.2 + Math.random() * 0.8;
+      } else if (this.attackPhase === 'spiral') {
+        this.spiralCount = 14;
+        this.phaseTimer = 0.05;
+      }
+    }
+
+    fireAimedOrb(player, bossProjectiles) {
+      if (!bossProjectiles) return;
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const dist = Math.max(0.001, Math.hypot(dx, dy));
+      const spd = 300;
+      const spread = (Math.random() - 0.5) * 0.24;
+      const a = Math.atan2(dy, dx) + spread;
+      const vx = Math.cos(a) * spd;
+      const vy = Math.sin(a) * spd;
+      bossProjectiles.push(new BossProjectile(this.x, this.y, vx, vy, 16, 11, '#ff3c6e'));
+      audio.play('laser', 0.7);
+    }
+
+    fireOctaNova(bossProjectiles, particles) {
+      if (!bossProjectiles) return;
+      const spd = 260;
+      for (let i = 0; i < 8; i++) {
+        const a = this.rot + (i * Math.PI) / 4;
+        const tipDist = this.radius + 36;
+        const ox = this.x + Math.cos(a) * tipDist;
+        const oy = this.y + Math.sin(a) * tipDist;
+        const vx = Math.cos(a) * spd;
+        const vy = Math.sin(a) * spd;
+        bossProjectiles.push(new BossProjectile(ox, oy, vx, vy, 18, 12, '#ff8c28'));
+      }
+      if (particles) {
+        particles.spawnShockwave(this.x, this.y, 120, '#ff8c28');
+      }
+      audio.play('arc_blade', 0.9);
+    }
+
+    fireSpiralOrb(bossProjectiles) {
+      if (!bossProjectiles) return;
+      const spd = 250;
+      const a = this.rot;
+      const vx = Math.cos(a) * spd;
+      const vy = Math.sin(a) * spd;
+      bossProjectiles.push(new BossProjectile(this.x, this.y, vx, vy, 14, 10, '#ff28b4'));
+      audio.play('laser', 0.5);
+    }
+
+    summonYellowSquares(spawner, particles) {
+      if (!spawner) return;
+      const count = 3 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = 160 + Math.random() * 100;
+        const sx = this.x + Math.cos(a) * d;
+        const sy = this.y + Math.sin(a) * d;
+        spawner.addEnemy(new SwarmMite(sx, sy, 1.0));
+        if (particles) {
+          particles.spawnSparks(sx, sy, '#ffe632', 6, [40, 120], 4);
+        }
+      }
+      audio.play('gem', 0.6);
+    }
+
+    draw(ctx, cam) {
+      if (!cam.isVisible(this.x, this.y, this.radius + 55)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+      const zoom = cam.zoom;
+      const rBody = this.radius * zoom;
+      const baseCol = this.flashTimer > 0 ? '#ffffff' : (this.chargeFlash > 0 ? '#ffc864' : this.color);
+
+      ctx.save();
+
+      // 1. 8 Floating Triangular Spikes (Matching user's sketch)
+      const spikeFloat = Math.sin(this.spikePulse) * 4 * zoom;
+      const rBase = rBody + 10 * zoom + spikeFloat;
+      const rTip = rBase + 32 * zoom;
+      const wBase = 22 * zoom;
+
+      for (let i = 0; i < 8; i++) {
+        const phi = this.rot + (i * Math.PI) / 4;
+        const cosP = Math.cos(phi);
+        const sinP = Math.sin(phi);
+
+        const bcx = sx + cosP * rBase;
+        const bcy = sy + sinP * rBase;
+
+        const tx = -sinP * (wBase / 2);
+        const ty = cosP * (wBase / 2);
+
+        const ptBase1 = { x: bcx + tx, y: bcy + ty };
+        const ptBase2 = { x: bcx - tx, y: bcy - ty };
+        const ptTip = { x: sx + cosP * rTip, y: sy + sinP * rTip };
+
+        ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : '#2d1220';
+        ctx.strokeStyle = baseCol;
+        ctx.lineWidth = Math.max(1, 3 * zoom);
+        ctx.beginPath();
+        ctx.moveTo(ptBase1.x, ptBase1.y);
+        ctx.lineTo(ptTip.x, ptTip.y);
+        ctx.lineTo(ptBase2.x, ptBase2.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        if (this.chargeFlash > 0) {
+          ctx.fillStyle = '#ffd700';
+          ctx.beginPath();
+          ctx.arc(ptTip.x, ptTip.y, Math.max(2, 5 * zoom), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 2. Central Octagon Body (Matching user's sketch)
+      const octPts = [];
+      for (let i = 0; i < 8; i++) {
+        const a = this.rot + Math.PI / 8 + (i * Math.PI) / 4;
+        octPts.push({
+          x: sx + Math.cos(a) * rBody,
+          y: sy + Math.sin(a) * rBody
+        });
+      }
+
+      ctx.fillStyle = this.flashTimer > 0 ? '#ffffff' : '#1c0e18';
+      ctx.strokeStyle = baseCol;
+      ctx.lineWidth = Math.max(2, 4 * zoom);
+      ctx.beginPath();
+      octPts.forEach((pt, idx) => {
+        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 3. Central Circular Eye/Core (Matching 'O' in sketch)
+      const eyeR = Math.max(4, rBody * 0.42);
+      const eyePulseR = eyeR + Math.sin(this.eyePulse) * 2 * zoom;
+      const eyeCol = this.chargeFlash > 0 ? '#ffd700' : '#ff326e';
+
+      ctx.fillStyle = '#140a12';
+      ctx.beginPath();
+      ctx.arc(sx, sy, eyePulseR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = eyeCol;
+      ctx.lineWidth = Math.max(2, 3 * zoom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff0f5';
+      ctx.beginPath();
+      ctx.arc(sx, sy, Math.max(2, eyePulseR * 0.45), 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Boss Health Bar (Above head)
+      const bw = 100 * zoom;
+      const bh = 9 * zoom;
+      const bx = sx - bw / 2;
+      const by = sy - (rTip + 18 * zoom);
+      ctx.fillStyle = '#140810';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+      ctx.fillStyle = '#ff2850';
+      ctx.fillRect(bx, by, Math.max(0, bw * (this.hp / this.maxHp)), bh);
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      ctx.restore();
+    }
+  }
+
   // --- Wave Spawner ---
   class WaveSpawner {
     constructor(difficulty = 'NORMAL') {
       this.difficulty = difficulty;
       this.gameTime = 0;
       this.spawnTimer = 0;
-      this.spawnInterval = 0.8;
+      this.spawnInterval = 1.0;
       this.enemies = [];
       this.drops = [];
-      this.maxEnemies = 360;
+      this.maxEnemies = 220;
       this.maxDrops = 130;
       this.bossSpawnedMinutes = new Set();
+      this.isBossLevel = false;
     }
 
     addEnemy(enemy) {
@@ -2815,40 +3303,47 @@
       this.enemies.push(enemy);
     }
 
-    update(dt, player, particles, cam, obstacles) {
+    update(dt, player, particles, cam, obstacles, bossProjectiles) {
       this.gameTime += dt;
-      const minute = this.gameTime / 60;
-      const levelBonus = Math.max(0, player.level - 1) * 0.45;
-      const diffCfg = DIFFICULTY_CONFIGS[this.difficulty] || DIFFICULTY_CONFIGS.NORMAL;
-      const threat = (minute + levelBonus) * diffCfg.threat_mult;
-      const hpScale = (1.0 + threat * 0.38) * diffCfg.hp_mult;
-      this.spawnInterval = Math.max(0.10, (0.85 - threat * 0.08) * diffCfg.spawn_interval_mult);
 
-      // Boss Spawn
-      const curMin = Math.floor(minute);
-      if ([3, 6, 9].includes(curMin) && !this.bossSpawnedMinutes.has(curMin)) {
-        this.bossSpawnedMinutes.add(curMin);
-        const pos = this.getOffscreenPos(player);
-        this.addEnemy(new ColossusBoss(pos.x, pos.y, hpScale));
-        particles.spawnText(player.x, player.y - 60, 'WARNING: COLOSSUS APPROACHES!', '#ff2864', 3.0, true);
-        cam.shake(10, 0.6);
-      }
+      if (!this.isBossLevel) {
+        const minute = this.gameTime / 60;
+        const levelBonus = Math.max(0, player.level - 1) * 0.28;
+        const diffCfg = DIFFICULTY_CONFIGS[this.difficulty] || DIFFICULTY_CONFIGS.NORMAL;
+        const threat = (minute + levelBonus) * diffCfg.threat_mult;
+        const hpScale = (1.0 + threat * 0.25) * diffCfg.hp_mult;
+        this.spawnInterval = Math.max(0.20, (1.10 - threat * 0.05) * diffCfg.spawn_interval_mult);
 
-      // Spawning loop
-      this.spawnTimer -= dt;
-      if (this.spawnTimer <= 0) {
-        this.spawnTimer = this.spawnInterval;
-        if (this.enemies.length < this.maxEnemies) {
-          const batch = Math.min(8, 1 + Math.floor(threat * 1.1));
-          for (let i = 0; i < batch; i++) {
-            this.spawnEnemy(player, threat, hpScale, obstacles);
+        // Boss Spawn (Colossus at minutes 3, 6, 9 during standard survival)
+        const curMin = Math.floor(minute);
+        if ([3, 6, 9].includes(curMin) && !this.bossSpawnedMinutes.has(curMin)) {
+          this.bossSpawnedMinutes.add(curMin);
+          const pos = this.getOffscreenPos(player);
+          this.addEnemy(new ColossusBoss(pos.x, pos.y, hpScale));
+          particles.spawnText(player.x, player.y - 60, 'WARNING: COLOSSUS APPROACHES!', '#ff2864', 3.0, true);
+          cam.shake(10, 0.6);
+        }
+
+        // Spawning loop
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+          this.spawnTimer = this.spawnInterval;
+          if (this.enemies.length < this.maxEnemies) {
+            const batch = Math.min(6, 1 + Math.floor(threat * 0.75));
+            for (let i = 0; i < batch; i++) {
+              this.spawnEnemy(player, threat, hpScale, obstacles);
+            }
           }
         }
       }
 
       // Update enemies
       for (const e of this.enemies) {
-        e.update(dt, player, obstacles);
+        if (e.updateBoss) {
+          e.updateBoss(dt, player, obstacles, bossProjectiles, this, particles);
+        } else {
+          e.update(dt, player, obstacles);
+        }
       }
 
       // Separation
@@ -2873,10 +3368,18 @@
 
           if (this.drops.length < this.maxDrops) {
             const r = Math.random();
-            if (e.isBoss) {
+            if (e.isOctagonBoss) {
+              this.drops.push(new DropItem(e.x - 24, e.y, 'forge_tome'));
+              this.drops.push(new DropItem(e.x + 24, e.y, 'hyper_core'));
+              this.drops.push(new DropItem(e.x, e.y + 24, 'health'));
+              for (let k = 0; k < 10; k++) {
+                this.drops.push(new DropItem(e.x + (Math.random() - 0.5) * 80, e.y + (Math.random() - 0.5) * 80, 'gem', 18));
+              }
+            } else if (e.isBoss) {
+              this.drops.push(new DropItem(e.x - 20, e.y, 'forge_tome'));
               this.drops.push(new DropItem(e.x, e.y, 'gem', 35));
-              this.drops.push(new DropItem(e.x + 15, e.y, 'health'));
-              this.drops.push(new DropItem(e.x - 15, e.y, 'hyper_core'));
+              this.drops.push(new DropItem(e.x + 20, e.y, 'health'));
+              this.drops.push(new DropItem(e.x, e.y - 20, 'hyper_core'));
             } else if (r < 0.012) {
               this.drops.push(new DropItem(e.x, e.y, 'hyper_core'));
             } else if (r < 0.027) {
@@ -2890,7 +3393,7 @@
             }
           }
         } else {
-          aliveEnemies.append ? aliveEnemies.append(e) : aliveEnemies.push(e);
+          aliveEnemies.push(e);
         }
       }
       this.enemies = aliveEnemies;
@@ -2925,23 +3428,23 @@
       const pos = this.getOffscreenPos(player);
       const r = Math.random();
 
-      if (threat < 1.2) {
-        if (r < 0.75) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
+      if (threat < 1.8) {
+        if (r < 0.80) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
         else this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
-      } else if (threat < 2.8) {
-        if (r < 0.50) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
-        else if (r < 0.80) this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
-        else this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
-      } else if (threat < 4.8) {
-        if (r < 0.25) this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
-        else if (r < 0.50) this.addEnemy(new DiamondDasher(pos.x, pos.y, hpScale));
-        else if (r < 0.75) this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
-        else this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
-      } else {
-        if (r < 0.35) this.addEnemy(new DiamondDasher(pos.x, pos.y, hpScale));
-        else if (r < 0.65) this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
+      } else if (threat < 3.8) {
+        if (r < 0.55) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
         else if (r < 0.85) this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
-        else this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
+        else this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
+      } else if (threat < 6.0) {
+        if (r < 0.35) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
+        else if (r < 0.60) this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
+        else if (r < 0.80) this.addEnemy(new DiamondDasher(pos.x, pos.y, hpScale));
+        else this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
+      } else {
+        if (r < 0.20) this.addEnemy(new SwarmMite(pos.x, pos.y, hpScale));
+        else if (r < 0.45) this.addEnemy(new DiamondDasher(pos.x, pos.y, hpScale));
+        else if (r < 0.75) this.addEnemy(new HexagonBrute(pos.x, pos.y, hpScale));
+        else this.addEnemy(new TriangleScout(pos.x, pos.y, hpScale));
       }
     }
 
@@ -3243,6 +3746,10 @@
       this.player = null;
       this.weapons = [];
       this.projectiles = [];
+      this.completedGenomes = 0;
+      this.isBossLevel = false;
+      this.activeBoss = null;
+      this.bossProjectiles = [];
       this.obstacles = null;
       this.portal = null;
       this.portalTimer = 45;
@@ -3289,6 +3796,10 @@
 
     reset() {
       this.genome = getInitialGenome();
+      this.completedGenomes = 0;
+      this.isBossLevel = false;
+      this.activeBoss = null;
+      this.bossProjectiles = [];
       this.portal = null;
       this.portalTimer = 45 + Math.random() * 20;
       this.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
@@ -3326,6 +3837,7 @@
 
       this.pendingNewWeapon = null;
       this.weapons = [wCube, wArc, wCluster, wTempest, wBeam, wSpiral, wCascade, wShockwave, wBlast];
+      this.player.weapons = this.weapons;
 
       audio.playGenomeMusic(this.genome.name);
     }
@@ -3947,6 +4459,60 @@
       this.portalTimer = 65 + Math.random() * 30;
     }
 
+    enterBossLevel() {
+      this.isBossLevel = true;
+      this.spawner.isBossLevel = true;
+      this.bossProjectiles = [];
+
+      const cx = WORLD_WIDTH / 2;
+      const cy = WORLD_HEIGHT / 2;
+
+      this.player.x = cx;
+      this.player.y = cy + 420;
+      this.player.vx = 0;
+      this.player.vy = 0;
+
+      this.obstacles.generateBossOctagon(cx, cy, this.genome);
+      this.spawner.triggerBomb(this.particles, this.cam);
+      this.spawner.enemies = [];
+
+      const bossCycle = Math.max(1, Math.floor(this.completedGenomes / 3));
+      const diffCfg = DIFFICULTY_CONFIGS[this.difficulty] || DIFFICULTY_CONFIGS.NORMAL;
+      const hpScale = (1.0 + (bossCycle - 1) * 0.50 + Math.max(0, this.player.level - 1) * 0.03) * (diffCfg.hp_mult || 1.0);
+      this.activeBoss = new OctagonBoss(cx, cy - 140, hpScale);
+      this.spawner.enemies.push(this.activeBoss);
+
+      this.cam.triggerWarpFlash();
+      this.cam.shake(16, 0.8);
+      audio.play('warp', 1.0);
+      this.particles.spawnShockwave(cx, cy, 650, '#ff2d5f');
+      this.particles.spawnText(this.player.x, this.player.y - 70, '⚠️ BOSS LEVEL: THE OCTAGON ARENA', '#ff2d5f', 4.0, true);
+
+      this.portal = null;
+    }
+
+    exitBossLevel() {
+      this.isBossLevel = false;
+      this.spawner.isBossLevel = false;
+      this.activeBoss = null;
+      this.bossProjectiles = [];
+
+      this.genome = getMutatedGenome(this.genome);
+      this.player.applyGenome(this.genome);
+      this.obstacles.generate(this.player.x, this.player.y, this.genome);
+      this.spawner.triggerBomb(this.particles, this.cam);
+
+      this.cam.triggerWarpFlash();
+      this.cam.shake(14, 0.7);
+      audio.play('warp', 1.0);
+      audio.playGenomeMusic(this.genome.name);
+      this.particles.spawnShockwave(this.player.x, this.player.y, 450, this.genome.obstacle_border);
+      this.particles.spawnText(this.player.x, this.player.y - 50, `DIMENSIONAL GATEWAY: ${this.genome.name}`, this.genome.obstacle_accent, 3.0, true);
+
+      this.portal = null;
+      this.portalTimer = 55 + Math.random() * 25;
+    }
+
     update(dt) {
       this.stateTime += dt;
 
@@ -3971,27 +4537,53 @@
 
         // Dimensional Portal
         if (!this.portal) {
-          this.portalTimer -= dt;
-          if (this.portalTimer <= 0) {
-            const a = Math.random() * Math.PI * 2;
-            const dist = 450 + Math.random() * 400;
-            const px = Math.max(180, Math.min(WORLD_WIDTH - 180, this.player.x + Math.cos(a) * dist));
-            const py = Math.max(180, Math.min(WORLD_HEIGHT - 180, this.player.y + Math.sin(a) * dist));
-            this.portal = new DimensionalPortal(px, py, 60);
-            this.particles.spawnText(this.player.x, this.player.y - 70, 'DIMENSIONAL ANOMALY DETECTED!', '#ff50dc', 3.5, true);
-            audio.play('crescent_pulse', 0.9);
+          if (!this.isBossLevel) {
+            this.portalTimer -= dt;
+            if (this.portalTimer <= 0) {
+              const a = Math.random() * Math.PI * 2;
+              const dist = 450 + Math.random() * 400;
+              const px = Math.max(180, Math.min(WORLD_WIDTH - 180, this.player.x + Math.cos(a) * dist));
+              const py = Math.max(180, Math.min(WORLD_HEIGHT - 180, this.player.y + Math.sin(a) * dist));
+              this.portal = new DimensionalPortal(px, py, 60);
+              this.particles.spawnText(this.player.x, this.player.y - 70, 'DIMENSIONAL ANOMALY DETECTED!', '#ff50dc', 3.5, true);
+              audio.play('crescent_pulse', 0.9);
+            }
           }
         } else {
           const entered = this.portal.update(dt, this.player);
-          if (entered) this.mutateGenome();
-          else if (!this.portal.active) {
-            this.portal = null;
-            this.portalTimer = 55 + Math.random() * 30;
+          if (entered) {
+            if (this.isBossLevel) {
+              this.exitBossLevel();
+            } else {
+              this.completedGenomes++;
+              if (this.completedGenomes % 3 === 0) {
+                this.enterBossLevel();
+              } else {
+                this.mutateGenome();
+              }
+            }
+          } else if (!this.portal.active) {
+            if (!this.isBossLevel) {
+              this.portal = null;
+              this.portalTimer = 55 + Math.random() * 30;
+            }
           }
         }
 
+        // Check if active boss defeated
+        if (this.isBossLevel && this.activeBoss && !this.activeBoss.alive && !this.portal) {
+          const cx = WORLD_WIDTH / 2;
+          const cy = WORLD_HEIGHT / 2;
+          this.portal = new DimensionalPortal(cx, cy, 9999);
+          this.cam.shake(16, 0.9);
+          audio.play('warp', 1.0);
+          this.particles.spawnShockwave(this.activeBoss.x, this.activeBoss.y, 600, '#ffd700');
+          this.particles.spawnText(this.player.x, this.player.y - 70, 'GATEWAY UNLOCKED! ENTER PORTAL', '#ffd700', 4.0, true);
+          this.activeBoss = null;
+        }
+
         // Spawner
-        const leveled = this.spawner.update(dt, this.player, this.particles, this.cam, this.obstacles);
+        const leveled = this.spawner.update(dt, this.player, this.particles, this.cam, this.obstacles, this.bossProjectiles);
         if (leveled || this.player.pendingLevelUps > 0) {
           if (this.player.pendingLevelUps > 0) this.player.pendingLevelUps--;
           this.state = 'levelup';
@@ -4077,6 +4669,47 @@
           if (!p.alive) this.projectiles.splice(i, 1);
         }
 
+        // Boss Projectiles Update
+        for (let i = this.bossProjectiles.length - 1; i >= 0; i--) {
+          const bp = this.bossProjectiles[i];
+          bp.update(dt);
+          if (!bp.alive) {
+            this.bossProjectiles.splice(i, 1);
+            continue;
+          }
+
+          // Obstacle & Pillar Collision
+          const hitObs = this.obstacles.checkProjectileCollision(bp);
+          if (hitObs) {
+            this.particles.spawnSparks(bp.x, bp.y, bp.color, 4);
+            this.bossProjectiles.splice(i, 1);
+            continue;
+          }
+
+          // Player Collision
+          const distP = Math.hypot(this.player.x - bp.x, this.player.y - bp.y);
+          if (distP <= this.player.radius + bp.radius) {
+            const hit = this.player.takeDamage(bp.damage);
+            if (hit) {
+              this.cam.shake(7.0, 0.25);
+              this.particles.spawnDamage(this.player.x, this.player.y - 20, bp.damage, true);
+              this.particles.spawnSparks(this.player.x, this.player.y, '#ff3c3c', 6);
+              audio.play('hit', 0.7);
+              if (this.player.hp <= 0) {
+                this.state = 'name_entry';
+                this.nameEntrySlot = 0;
+                this.scoreRecorded = false;
+                this.particles.spawnShockwave(this.player.x, this.player.y, 250, '#ff3232');
+                audio.play('hurt', 1.0);
+                this.bossProjectiles.splice(i, 1);
+                break;
+              }
+            }
+            this.bossProjectiles.splice(i, 1);
+            continue;
+          }
+        }
+
         // Player Collision with Enemies
         for (const e of this.spawner.enemies) {
           if (Math.hypot(this.player.x - e.x, this.player.y - e.y) <= this.player.radius + e.radius) {
@@ -4122,6 +4755,7 @@
         this.spawner.draw(ctx, this.cam);
 
         for (const p of this.projectiles) p.draw(ctx, this.cam);
+        for (const bp of this.bossProjectiles) bp.draw(ctx, this.cam);
         for (const w of this.weapons) {
           if (w instanceof CrescentTempestWeapon) w.draw(ctx, this.cam, this.player);
         }
@@ -4189,11 +4823,30 @@
       ctx.textAlign = 'center';
       ctx.fillText(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`, hudCx, 34);
 
-      // Genome Badge
-      ctx.font = 'bold 12px Consolas';
-      ctx.fillStyle = this.genome.obstacle_border;
-      ctx.textAlign = 'center';
-      ctx.fillText(`DIMENSION: ${this.genome.name} [${this.genome.code}]`, hudCx, 54);
+      // Genome / Boss Badge
+      if (this.activeBoss && this.activeBoss.alive) {
+        const bossBarW = isArcade ? Math.floor(hudW * 0.74) : Math.floor(hudW * 0.52);
+        const bossBarH = 16;
+        const bossBx = Math.floor(hudCx - bossBarW / 2);
+        const bossBy = 50;
+        const bossRatio = Math.max(0.0, Math.min(1.0, this.activeBoss.hp / Math.max(1, this.activeBoss.maxHp)));
+        ctx.fillStyle = '#180a12';
+        ctx.fillRect(bossBx - 2, bossBy - 2, bossBarW + 4, bossBarH + 4);
+        ctx.fillStyle = '#ff2d5f';
+        ctx.fillRect(bossBx, bossBy, Math.floor(bossBarW * bossRatio), bossBarH);
+        ctx.strokeStyle = '#ffc83c';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bossBx, bossBy, bossBarW, bossBarH);
+        ctx.font = 'bold 12px Consolas';
+        ctx.fillStyle = '#fff5f5';
+        ctx.textAlign = 'center';
+        ctx.fillText(`💀 APEX OCTAGON OVERLORD [${Math.round(bossRatio * 100)}%]`, hudCx, bossBy + 12);
+      } else {
+        ctx.font = 'bold 12px Consolas';
+        ctx.fillStyle = this.genome.obstacle_border;
+        ctx.textAlign = 'center';
+        ctx.fillText(`DIMENSION: ${this.genome.name} [${this.genome.code}]`, hudCx, 54);
+      }
 
       if (!isArcade) {
         // Kill Counter

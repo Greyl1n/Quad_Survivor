@@ -1,5 +1,29 @@
 [
   {
+    "id": "run_20261006_120403_14",
+    "initials": "MMH",
+    "time": 643.7,
+    "time_str": "10:43",
+    "level": 14,
+    "kills": 1573,
+    "damage_taken": 863,
+    "genome": "TOXIC-OVERGROWTH",
+    "difficulty": "NORMAL",
+    "date": "2026-10-06 12:04"
+  },
+  {
+    "id": "run_20261006_200927_15",
+    "initials": "MMH",
+    "time": 314.0,
+    "time_str": "05:14",
+    "level": 10,
+    "kills": 579,
+    "damage_taken": 292,
+    "genome": "CYBER-MATRIX",
+    "difficulty": "NORMAL",
+    "date": "2026-10-06 20:09"
+  },
+  {
     "id": "starter_1",
     "time": 215.4,
     "time_str": "03:35",
@@ -9,6 +33,18 @@
     "genome": "CYBER-MATRIX",
     "date": "2026-09-28 18:30",
     "initials": "AAA"
+  },
+  {
+    "id": "run_20261006_074607_13",
+    "initials": "MMH",
+    "time": 191.9,
+    "time_str": "03:11",
+    "level": 9,
+    "kills": 288,
+    "damage_taken": 213,
+    "genome": "TOXIC-OVERGROWTH",
+    "difficulty": "EASY",
+    "date": "2026-10-06 07:46"
   },
   {
     "id": "starter_2",
@@ -66,6 +102,18 @@
     "genome": "VOID-ABYSS",
     "date": "2026-09-29 14:40",
     "initials": "AAA"
+  },
+  {
+    "id": "run_20261001_213153_12",
+    "initials": "MMH",
+    "time": 82.0,
+    "time_str": "01:21",
+    "level": 5,
+    "kills": 133,
+    "damage_taken": 164,
+    "genome": "HYPER-NEON",
+    "difficulty": "NORMAL",
+    "date": "2026-10-01 21:31"
   },
   {
     "id": "run_20261001_204337_11",

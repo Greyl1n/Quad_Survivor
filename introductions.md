@@ -176,6 +176,32 @@ At regular intervals, a swirling **Dimensional Portal** anomaly manifests in the
 
 ---
 
+## 👑 The Apex Boss Dimension: Octagon Overlord Encounter
+
+Every **3 completed genomes** (after Dimensions 3, 6, 9...), the player steps into the portal to face a dedicated **Boss Level**:
+
+1. **Octagonal Containment Arena**:
+   - An enclosed 8-sided containment arena ($R = 950\text{px}$) with impenetrable outer boundary walls and glowing perimeter lasers.
+   - Symmetrically anchored by **4 Tactical Energy Pillars** in the 4 quadrants ($X \pm 310, Y \pm 310$).
+   - Pillars absorb and destroy incoming boss projectiles, rewarding tactical positioning and kiting cover.
+2. **Boss Design: The Apex Octagon Overlord**:
+   - Built faithfully from the mechanical blueprint sketch: an octagonal armored chassis, a central glowing circular core eye, and **8 floating exterior triangular spikes/fins** oriented outward around each facet.
+   - **Attack Patterns**:
+     - **Aimed Orb Volley**: Rapid stream of heavy round projectiles targeting the Quad Core.
+     - **Octa-Nova Blast**: Synchronized 8-way burst of round orbs fired outward from each of the 8 floating spikes.
+     - **Helical Spiral Stream**: Sweeping rotating trajectory of round energy spheres.
+     - **Tactical XP Summons**: Periodically summons 3–4 yellow square Swarm Mites to provide reliable XP gem drops during the duel.
+3. **Boss HUD & Loot**:
+   - Features a dedicated screen-wide health bar (`💀 APEX OCTAGON OVERLORD [XX%]`).
+   - Defeating the boss grants guaranteed victory loot:
+     - **⚡ Overclock Matrix**: Instantly overclocks and upgrades one of your equipped weapons to its next level! (If all equipped weapons are maxed, it triggers a bonus core level up).
+     - **Hyper Core (🌟)**: Grants a permanent +10% stacking damage boost to all weapons.
+     - **Full Health Restoration**: Instantly restores the Quad Core to max HP.
+     - **10 Large XP Gems**: Massive immediate progression boost.
+     - Spawns the central **Gateway Portal** leading back to standard dimensional traversal.
+
+---
+
 ## 🏆 Vintage 3-Letter Arcade Registration & Scoreboard
 
 Upon core destruction (HP reaching 0):
