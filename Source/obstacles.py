@@ -11,6 +11,115 @@ import pygame
 from constants import WORLD_WIDTH, WORLD_HEIGHT
 
 
+class OctagonArenaBoundary:
+    """
+    Enclosed Octagonal containment barrier for the Boss Level.
+    Directly matched with user's sketch:
+    - Octagonal arena boundary with 8 flat walls (flat top/bottom, vertical sides, diagonal corners)
+    - Prevents player, enemies, and boss from escaping the octagon
+    - Reflects or blocks projectiles on the perimeter
+    - Renders glowing neon containment forcefields, tech floor pattern, and corner emitter nodes
+    """
+    def __init__(self, cx, cy, radius=950.0, fill_color=(14, 12, 22), border_color=(255, 45, 95), glow_color=(180, 20, 70), accent_color=(255, 200, 50)):
+        self.cx = float(cx)
+        self.cy = float(cy)
+        self.radius = float(radius)
+        # Distance from center to each of the 8 flat edges: d = R * cos(pi/8)
+        self.d = float(radius * math.cos(math.pi / 8.0))
+        self.fill_color = fill_color
+        self.border_color = border_color
+        self.glow_color = glow_color
+        self.accent_color = accent_color
+        self.pulse = 0.0
+
+        # Precompute the 8 unit normals (outward) at angles k * pi / 4
+        self.normals = [
+            (math.cos(k * math.pi / 4.0), math.sin(k * math.pi / 4.0))
+            for k in range(8)
+        ]
+
+        # Precompute the 8 vertices in world space
+        # Angle offset pi / 8 ensures the top edge is purely horizontal, matching the sketch!
+        self.vertices = [
+            (
+                self.cx + self.radius * math.cos(math.pi / 8.0 + k * math.pi / 4.0),
+                self.cy + self.radius * math.sin(math.pi / 8.0 + k * math.pi / 4.0)
+            )
+            for k in range(8)
+        ]
+
+    def resolve_circle_containment(self, cx, cy, radius):
+        """
+        Keeps entity INSIDE the octagon boundary.
+        If entity penetrates any of the 8 walls outward, pushes it back inside.
+        Returns (resolved_x, resolved_y, hit_boolean).
+        """
+        cur_x = cx
+        cur_y = cy
+        hit_any = False
+
+        max_dist = self.d - radius
+        for nx, ny in self.normals:
+            proj = (cur_x - self.cx) * nx + (cur_y - self.cy) * ny
+            if proj > max_dist:
+                overlap = proj - max_dist
+                cur_x -= nx * overlap
+                cur_y -= ny * overlap
+                hit_any = True
+
+        return cur_x, cur_y, hit_any
+
+    def check_projectile_collision(self, px, py, radius):
+        """
+        Tests if a projectile strikes the outer perimeter of the octagon.
+        Returns (hit_boolean, nx, ny).
+        """
+        for nx, ny in self.normals:
+            proj = (px - self.cx) * nx + (py - self.cy) * ny
+            if proj >= self.d - radius:
+                return True, -nx, -ny  # Normal facing inward
+        return False, 0.0, 0.0
+
+    def draw(self, surface, camera):
+        self.pulse += 0.03
+        if not camera.is_visible(self.cx, self.cy, self.radius + 60):
+            return
+
+        screen_pts = []
+        for vx, vy in self.vertices:
+            sx, sy = camera.world_to_screen(vx, vy)
+            screen_pts.append((int(sx), int(sy)))
+
+        scx, scy = camera.world_to_screen(self.cx, self.cy)
+        iscx, iscy = int(scx), int(scy)
+
+        # 1. Arena Floor Fill
+        pygame.draw.polygon(surface, self.fill_color, screen_pts)
+
+        # Concentric tech rings inside octagon floor
+        for r_ratio in [0.28, 0.55, 0.82]:
+            ring_r = int(self.radius * r_ratio * camera.zoom)
+            if ring_r > 2:
+                pygame.draw.circle(surface, self.glow_color, (iscx, iscy), ring_r, 1)
+
+        # Radial circuit lines from center to 8 corners
+        for sx, sy in screen_pts:
+            pygame.draw.line(surface, self.glow_color, (iscx, iscy), (sx, sy), 1)
+
+        # 2. Glowing Perimeter Boundary (Forcefield)
+        glow_w = max(2, int(6 * camera.zoom))
+        border_w = max(1, int(3 * camera.zoom))
+        pygame.draw.polygon(surface, self.glow_color, screen_pts, glow_w)
+        pygame.draw.polygon(surface, self.border_color, screen_pts, border_w)
+
+        # 3. Corner Pylon Nodes at 8 vertices
+        node_size = max(4, int(10 * camera.zoom))
+        for sx, sy in screen_pts:
+            pygame.draw.circle(surface, self.accent_color, (sx, sy), node_size)
+            pygame.draw.circle(surface, (255, 255, 255), (sx, sy), max(2, int(node_size * 0.45)))
+
+
+
 class RectObstacle:
     """Solid rectangular monolith or barrier wall."""
     def __init__(self, x, y, width, height, style="monolith", fill_color=None, border_color=None, glow_color=None, accent_color=None):
@@ -166,7 +275,51 @@ class ObstacleManager:
     """Procedurally generates and manages geometric obstacles across the arena."""
     def __init__(self, genome=None, player_x=None, player_y=None):
         self.obstacles = []
+        self.is_boss_arena = False
+        self.boss_arena = None
         self.generate(player_x, player_y, genome)
+
+    def generate_boss_octagon(self, cx, cy, genome=None):
+        """
+        Generates the dedicated Octagon Boss Arena matching the user's sketch:
+        - Octagon containment perimeter with 8 barrier walls
+        - 4 round pillars with central energy cores in the 4 quadrants
+        """
+        self.obstacles = []
+        self.is_boss_arena = True
+
+        fill = (14, 12, 22)
+        border = (255, 45, 95)
+        glow = (180, 20, 70)
+        accent = (255, 200, 50)
+        if genome:
+            border = getattr(genome, "obstacle_border", border)
+            glow = getattr(genome, "obstacle_glow", glow)
+            accent = getattr(genome, "obstacle_accent", accent)
+
+        self.boss_arena = OctagonArenaBoundary(
+            cx, cy,
+            radius=950.0,
+            fill_color=fill,
+            border_color=border,
+            glow_color=glow,
+            accent_color=accent
+        )
+
+        # 4 Pillars placed symmetrically in the 4 quadrants (matching user's sketch)
+        p_dist = 310.0
+        p_radius = 54.0
+        for dx in [-p_dist, p_dist]:
+            for dy in [-p_dist, p_dist]:
+                self.obstacles.append(
+                    CircleObstacle(
+                        cx + dx, cy + dy, p_radius,
+                        fill_color=(20, 16, 28),
+                        border_color=border,
+                        glow_color=glow,
+                        core_color=accent
+                    )
+                )
 
     def generate(self, player_x=None, player_y=None, genome=None):
         """
@@ -174,6 +327,8 @@ class ObstacleManager:
         Clears a safe circular perimeter around the player's current location.
         """
         self.obstacles = []
+        self.is_boss_arena = False
+        self.boss_arena = None
         safe_x = player_x if player_x is not None else WORLD_WIDTH / 2
         safe_y = player_y if player_y is not None else WORLD_HEIGHT / 2
         safe_radius = 280.0
@@ -259,11 +414,17 @@ class ObstacleManager:
         """
         Tests and resolves collisions between a circular entity (player, enemy) and all obstacles.
         Iteratively pushes the entity out of overlapping geometry without clipping.
+        If in the boss arena, ensures the entity stays safely contained within the 8 octagon walls.
         Returns (resolved_x, resolved_y, any_collision_occurred).
         """
         cur_x = x
         cur_y = y
         any_collided = False
+
+        if self.is_boss_arena and self.boss_arena:
+            cur_x, cur_y, arena_hit = self.boss_arena.resolve_circle_containment(cur_x, cur_y, radius)
+            if arena_hit:
+                any_collided = True
 
         for obs in self.obstacles:
             if isinstance(obs, RectObstacle):
@@ -285,10 +446,15 @@ class ObstacleManager:
 
     def check_projectile_collision(self, projectile):
         """
-        Tests if a projectile strikes any solid obstacle in the arena.
+        Tests if a projectile strikes any solid obstacle in the arena or the octagon boundary.
         Returns (hit_boolean, surface_normal_x, surface_normal_y) for ricochet reflection.
         """
         r = getattr(projectile, "size", 10.0) / 2
+        if self.is_boss_arena and self.boss_arena:
+            hit, nx, ny = self.boss_arena.check_projectile_collision(projectile.x, projectile.y, r)
+            if hit:
+                return True, nx, ny
+
         for obs in self.obstacles:
             if isinstance(obs, RectObstacle):
                 if (projectile.x + r < obs.x or projectile.x - r > obs.x + obs.width or
@@ -314,6 +480,9 @@ class ObstacleManager:
         return False
 
     def draw(self, surface, camera):
-        """Renders all obstacles visible in the active camera viewport."""
+        """Renders all obstacles visible in the active camera viewport, including octagon floor and barrier."""
+        if self.is_boss_arena and self.boss_arena:
+            self.boss_arena.draw(surface, camera)
         for obs in self.obstacles:
             obs.draw(surface, camera)
+

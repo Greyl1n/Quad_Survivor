@@ -32,6 +32,7 @@ from weapons import (
     ShockwaveCubeProjectile, BlastCubeProjectile
 )
 from spawner import WaveSpawner
+from enemies import OctagonBoss, BossProjectile
 from particles import ParticleManager
 from ui import UIManager, UpgradeOption
 from scoreboard import ScoreboardManager
@@ -64,6 +65,10 @@ class Game:
         self.particles = ParticleManager()
         self.spawner = WaveSpawner(difficulty=self.difficulty)
         self.genome = get_initial_genome()
+        self.completed_genomes = 0
+        self.is_boss_level = False
+        self.active_boss = None
+        self.boss_projectiles = []
         self.portal = None
         self.portal_spawn_timer = 45.0
         self.scoreboard = ScoreboardManager()
@@ -121,6 +126,10 @@ class Game:
         and initializes the 9 blueprint weapons (Cube Shot starts unlocked at Lv 1).
         """
         self.genome = get_initial_genome()
+        self.completed_genomes = 0
+        self.is_boss_level = False
+        self.active_boss = None
+        self.boss_projectiles = []
         self.portal = None
         self.portal_spawn_timer = random.uniform(40.0, 60.0)
         self.last_run_rank = -1
@@ -158,6 +167,7 @@ class Game:
         w_blast = BlastCubeWeapon()
 
         self.weapons = [w_cube, w_arc, w_scatter, w_tempest, w_beam, w_spiral, w_cascade, w_shockwave, w_blast]
+        self.player.weapons = self.weapons
 
     def cycle_letter(self, slot_idx, direction):
         """
@@ -227,6 +237,89 @@ class Game:
 
         self.portal = None
         self.portal_spawn_timer = random.uniform(60.0, 95.0)
+
+    def enter_boss_level(self):
+        """
+        Transitions the game into the dedicated Boss Level every 3 genomes:
+        - Sets is_boss_level = True and activates Octagon Arena
+        - Generates the Octagon containment perimeter with 4 tactical pillars (matching user's sketch)
+        - Safely positions player and spawns Apex Octagon Overlord boss
+        - Suspends ambient waves and shifts to high-stakes boss battle
+        """
+        self.is_boss_level = True
+        self.spawner.is_boss_level = True
+        self.boss_projectiles = []
+
+        cx = WORLD_WIDTH // 2
+        cy = WORLD_HEIGHT // 2
+
+        # Teleport player safely into lower quadrant of Octagon arena
+        self.player.x = float(cx)
+        self.player.y = float(cy + 420)
+        self.player.vx = 0.0
+        self.player.vy = 0.0
+
+        # Generate Octagon containment arena with 4 tactical pillars
+        self.obstacles.generate_boss_octagon(cx, cy, genome=self.genome)
+
+        # Clear standard enemies
+        self.spawner.trigger_bomb(self.particles, self.camera)
+        self.spawner.enemies = []
+
+        # Spawn Apex Octagon Overlord Boss (scaling with cycle count, player level, and difficulty setting)
+        boss_cycle = max(1, self.completed_genomes // 3)
+        diff_cfg = DIFFICULTY_CONFIGS.get(self.difficulty, DIFFICULTY_CONFIGS[DIFFICULTY_NORMAL])
+        hp_scale = (1.0 + (boss_cycle - 1) * 0.50 + max(0, self.player.level - 1) * 0.03) * diff_cfg.get("hp_mult", 1.0)
+        self.active_boss = OctagonBoss(cx, cy - 140, hp_scale=hp_scale)
+        self.spawner.enemies.append(self.active_boss)
+
+        # Screen-wide warp FX and announcement
+        self.camera.trigger_warp_flash()
+        self.camera.shake(16.0, 0.8)
+        audio.play("warp", 1.0)
+        self.particles.spawn_shockwave(cx, cy, max_radius=650.0, color=(255, 45, 95))
+        self.ui.trigger_warp_banner(
+            "⚠️ BOSS LEVEL: THE OCTAGON ARENA",
+            "CONTAINMENT ACTIVE: DEFEAT APEX OCTAGON OVERLORD!"
+        )
+
+        # Victory portal will spawn when boss is purged
+        self.portal = None
+
+    def exit_boss_level(self):
+        """
+        Transitions from Boss Level back to standard dimensional progression:
+        - Mutates to next procedural Level Genome
+        - Re-generates standard obstacle layouts around the player
+        - Resumes ambient swarm spawning and drops
+        """
+        self.is_boss_level = False
+        self.spawner.is_boss_level = False
+        self.active_boss = None
+        self.boss_projectiles = []
+
+        new_genome = get_random_mutated_genome(self.genome)
+        self.genome = new_genome
+        self.player.apply_genome_modifiers(self.genome)
+
+        # Regenerate procedural obstacles
+        self.obstacles.generate(player_x=self.player.x, player_y=self.player.y, genome=self.genome)
+        self.spawner.trigger_bomb(self.particles, self.camera)
+
+        # Audio, screenshake, warp flash, and music
+        self.camera.trigger_warp_flash()
+        self.camera.shake(14.0, 0.7)
+        audio.play("warp", 1.0)
+        audio.play_genome_music(self.genome.name)
+        self.particles.spawn_shockwave(self.player.x, self.player.y, max_radius=500.0, color=self.genome.obstacle_border)
+
+        self.ui.trigger_warp_banner(
+            f"DIMENSIONAL GATEWAY: {self.genome.name} [{self.genome.code}]",
+            f"MUTATOR: {self.genome.mutator_desc}"
+        )
+
+        self.portal = None
+        self.portal_spawn_timer = random.uniform(55.0, 80.0)
 
     def trigger_level_up(self):
         """
@@ -703,25 +796,46 @@ class Game:
 
             # Dimensional Portal lifecycle
             if self.portal is None:
-                self.portal_spawn_timer -= dt
-                if self.portal_spawn_timer <= 0:
-                    angle = random.uniform(0, 2 * math.pi)
-                    dist = random.uniform(420, 850)
-                    px = max(180, min(WORLD_WIDTH - 180, self.player.x + math.cos(angle) * dist))
-                    py = max(180, min(WORLD_HEIGHT - 180, self.player.y + math.sin(angle) * dist))
-                    self.portal = DimensionalPortal(px, py, duration=60.0)
-                    self.particles.spawn_text(self.player.x, self.player.y - 70, "DIMENSIONAL ANOMALY DETECTED!", (255, 80, 220), duration=3.5)
-                    audio.play("crescent_pulse", 0.9)
+                if not self.is_boss_level:
+                    self.portal_spawn_timer -= dt
+                    if self.portal_spawn_timer <= 0:
+                        angle = random.uniform(0, 2 * math.pi)
+                        dist = random.uniform(420, 850)
+                        px = max(180, min(WORLD_WIDTH - 180, self.player.x + math.cos(angle) * dist))
+                        py = max(180, min(WORLD_HEIGHT - 180, self.player.y + math.sin(angle) * dist))
+                        self.portal = DimensionalPortal(px, py, duration=60.0)
+                        self.particles.spawn_text(self.player.x, self.player.y - 70, "DIMENSIONAL ANOMALY DETECTED!", (255, 80, 220), duration=3.5)
+                        audio.play("crescent_pulse", 0.9)
             else:
                 entered = self.portal.update(dt, self.player)
                 if entered:
-                    self.mutate_level_genome()
+                    if self.is_boss_level:
+                        self.exit_boss_level()
+                    else:
+                        self.completed_genomes += 1
+                        if self.completed_genomes % 3 == 0:
+                            self.enter_boss_level()
+                        else:
+                            self.mutate_level_genome()
                 elif not self.portal.active:
-                    self.portal = None
-                    self.portal_spawn_timer = random.uniform(55.0, 85.0)
+                    if not self.is_boss_level:
+                        self.portal = None
+                        self.portal_spawn_timer = random.uniform(55.0, 85.0)
+
+            # Check if active boss was defeated
+            if self.is_boss_level and self.active_boss and not self.active_boss.alive and self.portal is None:
+                cx = WORLD_WIDTH // 2
+                cy = WORLD_HEIGHT // 2
+                self.portal = DimensionalPortal(cx, cy, duration=9999.0)
+                self.ui.trigger_warp_banner("🏆 DIMENSIONAL OVERLORD PURGED!", "ENTER GATEWAY PORTAL TO ADVANCE TO NEXT DIMENSION")
+                self.camera.shake(16.0, 0.9)
+                audio.play("warp", 1.0)
+                self.particles.spawn_shockwave(self.active_boss.x, self.active_boss.y, max_radius=600.0, color=(255, 215, 0))
+                self.particles.spawn_text(self.player.x, self.player.y - 70, "GATEWAY UNLOCKED!", (255, 215, 0), duration=4.0)
+                self.active_boss = None
 
             # Update Wave Spawner & check level up
-            leveled = self.spawner.update(dt, self.player, self.particles, self.camera, self.obstacles)
+            leveled = self.spawner.update(dt, self.player, self.particles, self.camera, self.obstacles, self.boss_projectiles)
             if leveled or self.player.pending_level_ups > 0:
                 self.trigger_level_up()
                 return
@@ -792,6 +906,37 @@ class Game:
                             break
             self.projectiles = [p for p in self.projectiles if p.alive]
 
+            # Update Boss Projectiles
+            alive_boss_proj = []
+            for bp in self.boss_projectiles:
+                bp.update(dt)
+                if not bp.alive:
+                    continue
+                # Obstacle & Pillar collision
+                hit_obs, _, _ = self.obstacles.check_projectile_collision(bp)
+                if hit_obs:
+                    self.particles.spawn_sparks(bp.x, bp.y, bp.color, count=4, size=3)
+                    continue
+                # Player collision
+                dist_p = math.hypot(self.player.x - bp.x, self.player.y - bp.y)
+                if dist_p <= (self.player.radius + bp.radius):
+                    hit = self.player.take_damage(bp.damage)
+                    if hit:
+                        self.camera.shake(7.0, 0.25)
+                        self.particles.spawn_damage_number(self.player.x, self.player.y - 20, bp.damage, is_crit=True)
+                        self.particles.spawn_sparks(self.player.x, self.player.y, (255, 60, 60), count=6, size=4)
+                        audio.play("hit", 0.7)
+                        if self.player.hp <= 0:
+                            self.state = STATE_NAME_ENTRY
+                            self.name_entry_slot = 0
+                            self.score_recorded = False
+                            self.particles.spawn_shockwave(self.player.x, self.player.y, max_radius=250.0, color=(255, 50, 50))
+                            audio.play("hurt", 1.0)
+                            break
+                    continue
+                alive_boss_proj.append(bp)
+            self.boss_projectiles = alive_boss_proj
+
             # Player Collision with Enemies
             for e in self.spawner.enemies:
                 dist = math.hypot(self.player.x - e.x, self.player.y - e.y)
@@ -849,7 +994,7 @@ class Game:
             # 1. Background Grid & Arena with Active Genome Colors
             self.camera.draw_background(self.screen, self.genome)
 
-            # 2. Geometric Obstacles (Themed to current Genome)
+            # 2. Geometric Obstacles (Themed to current Genome or Octagon Boss Arena)
             self.obstacles.draw(self.screen, self.camera)
 
             # 3. Dimensional Portal (if active)
@@ -862,6 +1007,10 @@ class Game:
             # 5. Projectiles
             for p in self.projectiles:
                 p.draw(self.screen, self.camera)
+
+            # Boss Projectiles (Round energy orbs from Octagon Boss)
+            for bp in self.boss_projectiles:
+                bp.draw(self.screen, self.camera)
 
             # 6. Crescent Tempest Orbitals
             for w in self.weapons:
@@ -881,8 +1030,12 @@ class Game:
             # 10. Camera Warp Flash Overlay
             self.camera.draw_warp_overlay(self.screen)
 
-            # 11. UI HUD (With active Genome and Mutator banner)
-            self.ui.draw_hud(self.screen, self.player, self.spawner.game_time, self.weapons, self.genome, self.difficulty, aspect_mode=self.aspect_mode)
+            # 11. UI HUD (With active Genome, Boss Bar, and Mutator banner)
+            self.ui.draw_hud(
+                self.screen, self.player, self.spawner.game_time, self.weapons,
+                self.genome, self.difficulty, aspect_mode=self.aspect_mode,
+                boss=self.active_boss
+            )
 
             # Virtual Touch Joystick overlay (Mobile / Drag controls)
             if self.touch_active and self.state == STATE_PLAYING:

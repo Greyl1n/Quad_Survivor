@@ -79,7 +79,7 @@ class UIManager:
         if self.warp_banner_timer > 0:
             self.warp_banner_timer -= dt
 
-    def draw_hud(self, surface, player, game_time, weapons, genome=None, difficulty="NORMAL", aspect_mode="16:9"):
+    def draw_hud(self, surface, player, game_time, weapons, genome=None, difficulty="NORMAL", aspect_mode="16:9", boss=None):
         is_arcade = (aspect_mode == "3:4")
         vx = 370 if is_arcade else 0
         vw = 540 if is_arcade else SCREEN_WIDTH
@@ -126,7 +126,23 @@ class UIManager:
         timer_surf = self.font_heading.render(timer_str, True, COLOR_UI_TEXT)
         surface.blit(timer_surf, (center_x - timer_surf.get_width() // 2, 28))
 
-        if genome:
+        if boss and getattr(boss, "alive", False):
+            # Dedicated Boss Health Bar across HUD
+            boss_bar_w = int(vw * 0.52) if not is_arcade else int(vw * 0.74)
+            boss_bar_h = 16
+            boss_bx = center_x - boss_bar_w // 2
+            boss_by = 56
+            pygame.draw.rect(surface, (24, 10, 18), (boss_bx - 2, boss_by - 2, boss_bar_w + 4, boss_bar_h + 4), border_radius=4)
+            boss_ratio = max(0.0, min(1.0, boss.hp / max(1.0, boss.max_hp)))
+            boss_fill_w = int(boss_bar_w * boss_ratio)
+            if boss_fill_w > 0:
+                pygame.draw.rect(surface, (255, 45, 95), (boss_bx, boss_by, boss_fill_w, boss_bar_h), border_radius=3)
+                pygame.draw.line(surface, (255, 160, 190), (boss_bx, boss_by + 1), (boss_bx + boss_fill_w, boss_by + 1), 1)
+            pygame.draw.rect(surface, (255, 200, 60), (boss_bx, boss_by, boss_bar_w, boss_bar_h), 1, border_radius=3)
+            b_tag = f"💀 APEX OCTAGON OVERLORD [{int(boss_ratio * 100)}%]"
+            b_surf = self.font_small.render(b_tag, True, (255, 245, 245))
+            surface.blit(b_surf, (center_x - b_surf.get_width() // 2, boss_by + 1))
+        elif genome:
             g_tag = f"GENOME: {genome.name} [{genome.code}]"
             g_surf = self.font_small.render(g_tag, True, genome.obstacle_border)
             surface.blit(g_surf, (center_x - g_surf.get_width() // 2, 54))

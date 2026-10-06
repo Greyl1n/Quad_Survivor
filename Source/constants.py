@@ -53,6 +53,7 @@ COLOR_HEALTH_PACK = (255, 50, 90)        # Red cross/heart
 COLOR_MAGNET = (180, 100, 255)           # Purple orb
 COLOR_BOMB = (255, 120, 30)              # Orange blast
 COLOR_HYPER_DROP = (255, 240, 80)        # Rare golden overcharge prism (+10% all weapon damage)
+COLOR_FORGE_TOME = (140, 240, 255)        # Radiant Overclock Matrix / Weapon Upgrade Crystal (Boss drop)
 
 # UI Colors
 COLOR_UI_TEXT = (240, 245, 255)
@@ -104,25 +105,25 @@ DIFFICULTY_CONFIGS = {
         "tag": "EASY",
         "color": (80, 255, 140),       # Vibrant Green
         "border_color": (30, 180, 80),
-        "hp_mult": 0.70,
-        "speed_mult": 0.85,
-        "dmg_mult": 0.75,
-        "threat_mult": 0.75,
-        "spawn_interval_mult": 1.25,   # Spawns slightly slower
-        "magnet_bonus": 30.0,
-        "desc": "Relaxed swarm. -30% Enemy HP & Dmg, slower spawns."
+        "hp_mult": 0.55,               # Tuned down from 0.70
+        "speed_mult": 0.78,            # Tuned down from 0.85
+        "dmg_mult": 0.60,              # Tuned down from 0.75
+        "threat_mult": 0.55,           # Tuned down from 0.75
+        "spawn_interval_mult": 1.60,   # Slower spawn pace (was 1.25)
+        "magnet_bonus": 45.0,          # Extra pickup reach (was 30)
+        "desc": "Relaxed swarm. -45% Enemy HP & Threat, -40% Dmg, gentle spawns."
     },
     DIFFICULTY_NORMAL: {
         "name": "NORMAL",
         "tag": "NORM",
         "color": (0, 240, 220),        # Cyber Cyan
         "border_color": (0, 180, 160),
-        "hp_mult": 1.0,
-        "speed_mult": 1.0,
-        "dmg_mult": 1.0,
-        "threat_mult": 1.0,
-        "spawn_interval_mult": 1.0,
-        "magnet_bonus": 0.0,
+        "hp_mult": 0.88,               # Gently tuned down from 1.0
+        "speed_mult": 0.95,            # Gently tuned down from 1.0
+        "dmg_mult": 0.90,              # Gently tuned down from 1.0
+        "threat_mult": 0.85,           # Gently tuned down from 1.0
+        "spawn_interval_mult": 1.22,   # +22% time between spawns
+        "magnet_bonus": 10.0,
         "desc": "Standard authentic roguelite survivor balance."
     },
     DIFFICULTY_HARD: {
@@ -130,13 +131,13 @@ DIFFICULTY_CONFIGS = {
         "tag": "HARD",
         "color": (255, 75, 75),        # Crimson Red
         "border_color": (200, 40, 40),
-        "hp_mult": 1.38,
-        "speed_mult": 1.15,
-        "dmg_mult": 1.30,
-        "threat_mult": 1.35,
-        "spawn_interval_mult": 0.82,   # Spawns faster
-        "magnet_bonus": -15.0,
-        "desc": "Relentless horde! +38% Enemy HP, +15% Speed, high fury."
+        "hp_mult": 1.25,               # Tuned from 1.38
+        "speed_mult": 1.10,            # Tuned from 1.15
+        "dmg_mult": 1.18,              # Tuned from 1.30
+        "threat_mult": 1.15,           # Tuned from 1.35
+        "spawn_interval_mult": 0.95,   # Tuned from 0.82
+        "magnet_bonus": -5.0,
+        "desc": "Relentless horde! +25% Enemy HP, +10% Speed, high challenge."
     }
 }
 

@@ -26,58 +26,63 @@ class WaveSpawner:
         self.spawn_interval = 0.8
         self.enemies = []
         self.drops = []
-        self.max_enemies = 400
+        self.max_enemies = 220
         self.max_drops = 140
         self.boss_spawned_times = set()
         self.difficulty = difficulty
         self.diff_cfg = DIFFICULTY_CONFIGS.get(difficulty, DIFFICULTY_CONFIGS[DIFFICULTY_NORMAL])
+        self.is_boss_level = False
 
     def set_difficulty(self, difficulty):
         """Updates difficulty setting and caches corresponding multipliers."""
         self.difficulty = difficulty
         self.diff_cfg = DIFFICULTY_CONFIGS.get(difficulty, DIFFICULTY_CONFIGS[DIFFICULTY_NORMAL])
 
-    def update(self, dt, player, particle_manager, camera, obstacles=None):
+    def update(self, dt, player, particle_manager, camera, obstacles=None, boss_projectiles=None):
         """
         Advances the wave director by dt seconds:
         - Computes dynamic threat level: effective_threat = (elapsed_minutes + level_bonus) * threat_mult
         - Scales enemy HP and shortens spawn intervals as threat rises
-        - Spawns Colossus Boss encounters at minutes 3, 6, and 9
-        - Spawns enemy batches in off-screen positions
+        - Spawns Colossus Boss encounters at minutes 3, 6, and 9 (during standard survival)
+        - In Boss Level, pauses standard ambient swarms and routes OctagonBoss updates
         - Updates enemy movement, soft separation, drops, and collection checks
         - Returns True if any collected gem triggers a player level up
         """
         self.game_time += dt
 
-        # Ramp difficulty with BOTH game time AND player level, scaled by difficulty setting!
-        minute = self.game_time / 60.0
-        level_bonus = max(0, player.level - 1) * 0.45
-        effective_threat = (minute + level_bonus) * self.diff_cfg["threat_mult"]
+        if not self.is_boss_level:
+            # Ramp difficulty with game time and player level, scaled by difficulty setting
+            minute = self.game_time / 60.0
+            level_bonus = max(0, player.level - 1) * 0.28
+            effective_threat = (minute + level_bonus) * self.diff_cfg["threat_mult"]
 
-        # HP scales with time, level, and difficulty setting
-        hp_scale = (1.0 + (effective_threat * 0.38)) * self.diff_cfg["hp_mult"]
-        self.spawn_interval = max(0.08, (0.85 - (effective_threat * 0.08)) * self.diff_cfg["spawn_interval_mult"])
+            # HP scales with time, level, and difficulty setting
+            hp_scale = (1.0 + (effective_threat * 0.25)) * self.diff_cfg["hp_mult"]
+            self.spawn_interval = max(0.20, (1.10 - (effective_threat * 0.05)) * self.diff_cfg["spawn_interval_mult"])
 
-        # Check Boss Spawns (at minutes 3, 6, 9 or when reaching level milestones 15, 30)
-        boss_minute = int(minute)
-        if boss_minute in (3, 6, 9) and boss_minute not in self.boss_spawned_times:
-            self.boss_spawned_times.add(boss_minute)
-            self._spawn_boss(player, hp_scale, obstacles)
-            particle_manager.spawn_text(player.x, player.y - 60, "WARNING: COLOSSUS APPROACHES!", (255, 40, 100), duration=3.0)
-            camera.shake(10.0, 0.6)
+            # Check Colossus Boss Spawns (at minutes 3, 6, 9 during standard waves)
+            boss_minute = int(minute)
+            if boss_minute in (3, 6, 9) and boss_minute not in self.boss_spawned_times:
+                self.boss_spawned_times.add(boss_minute)
+                self._spawn_boss(player, hp_scale, obstacles)
+                particle_manager.spawn_text(player.x, player.y - 60, "WARNING: COLOSSUS APPROACHES!", (255, 40, 100), duration=3.0)
+                camera.shake(10.0, 0.6)
 
-        # Standard spawning loop
-        self.spawn_timer -= dt
-        if self.spawn_timer <= 0:
-            self.spawn_timer = self.spawn_interval
-            if len(self.enemies) < self.max_enemies:
-                batch_size = min(10, 1 + int(effective_threat * 1.25))
-                for _ in range(batch_size):
-                    self._spawn_wave_enemy(player, effective_threat, hp_scale, obstacles)
+            # Standard spawning loop
+            self.spawn_timer -= dt
+            if self.spawn_timer <= 0:
+                self.spawn_timer = self.spawn_interval
+                if len(self.enemies) < self.max_enemies:
+                    batch_size = min(6, 1 + int(effective_threat * 0.75))
+                    for _ in range(batch_size):
+                        self._spawn_wave_enemy(player, effective_threat, hp_scale, obstacles)
 
         # Update enemies
         for e in self.enemies:
-            e.update(dt, player, obstacles)
+            if hasattr(e, "update_boss"):
+                e.update_boss(dt, player, obstacles, boss_projectiles, self, particle_manager)
+            else:
+                e.update(dt, player, obstacles)
 
         # Spatial soft separation between nearby enemies
         if len(self.enemies) > 1:
@@ -99,11 +104,24 @@ class WaveSpawner:
                 # Cap active drops to prevent gem flood
                 if len(self.drops) < self.max_drops:
                     drop_roll = random.random()
-                    if e.is_boss:
-                        # Guaranteed large gem + health pack + rare Hyper Core!
+                    if getattr(e, "is_octagon_boss", False):
+                        # Epic loot from Octagon Boss: Overclock Weapon Matrix + Hyper Core + Full Health + 10 Large Gems!
+                        self.drops.append(DropItem(e.x - 24, e.y, "forge_tome"))
+                        self.drops.append(DropItem(e.x + 24, e.y, "hyper_core"))
+                        self.drops.append(DropItem(e.x, e.y + 24, "health"))
+                        for _ in range(10):
+                            self.drops.append(DropItem(
+                                e.x + random.uniform(-45, 45),
+                                e.y + random.uniform(-45, 45),
+                                "gem",
+                                value=18
+                            ))
+                    elif e.is_boss:
+                        # Colossus Boss Defeat: Overclock Weapon Matrix + Guaranteed large gem + health pack + rare Hyper Core!
+                        self.drops.append(DropItem(e.x - 20, e.y, "forge_tome"))
                         self.drops.append(DropItem(e.x, e.y, "gem", value=35))
-                        self.drops.append(DropItem(e.x + 15, e.y, "health"))
-                        self.drops.append(DropItem(e.x - 15, e.y, "hyper_core"))
+                        self.drops.append(DropItem(e.x + 20, e.y, "health"))
+                        self.drops.append(DropItem(e.x, e.y - 20, "hyper_core"))
                     elif drop_roll < 0.012:
                         # Extra rare in-field drop: +10% Damage to all weapons!
                         self.drops.append(DropItem(e.x, e.y, "hyper_core"))
@@ -163,43 +181,43 @@ class WaveSpawner:
         x, y = self._get_offscreen_spawn_pos(player, obstacles)
         r = random.random()
 
-        if threat < 1.2:
-            # Early game: Predominantly weak Swarm Mites (yellow squares) to ease early difficulty
-            if r < 0.75:
+        if threat < 1.8:
+            # Early game: 80% weak Swarm Mites (yellow squares) for gentle ramp and rapid gem drops
+            if r < 0.80:
                 self._add_enemy(SwarmMite(x, y, hp_scale))
             else:
                 self._add_enemy(TriangleScout(x, y, hp_scale))
 
-        elif threat < 2.8:
-            # Mid-Early: Mites lead, Scouts follow, and Armored Hexagon Brutes occasionally appear
-            if r < 0.50:
+        elif threat < 3.8:
+            # Mid-Early: 55% Mites, 30% Scouts, 15% Brutes
+            if r < 0.55:
                 self._add_enemy(SwarmMite(x, y, hp_scale))
-            elif r < 0.80:
+            elif r < 0.85:
                 self._add_enemy(TriangleScout(x, y, hp_scale))
             else:
                 self._add_enemy(HexagonBrute(x, y, hp_scale))
 
-        elif threat < 4.8:
-            # Mid-Game: Diamond Dashers start surging, Brutes become common!
-            if r < 0.25:
+        elif threat < 6.0:
+            # Mid-Game: Controlled mix with generous mite density for sustain
+            if r < 0.35:
+                self._add_enemy(SwarmMite(x, y, hp_scale))
+            elif r < 0.60:
                 self._add_enemy(TriangleScout(x, y, hp_scale))
-            elif r < 0.50:
+            elif r < 0.80:
+                self._add_enemy(DiamondDasher(x, y, hp_scale))
+            else:
+                self._add_enemy(HexagonBrute(x, y, hp_scale))
+
+        else:
+            # Late Game: Mixed challenge with 20% mites remaining for XP sustain
+            if r < 0.20:
+                self._add_enemy(SwarmMite(x, y, hp_scale))
+            elif r < 0.45:
                 self._add_enemy(DiamondDasher(x, y, hp_scale))
             elif r < 0.75:
                 self._add_enemy(HexagonBrute(x, y, hp_scale))
             else:
-                self._add_enemy(SwarmMite(x, y, hp_scale))
-
-        else:
-            # Late Game / High Level: Brutal elite squads of Dashers and Brutes!
-            if r < 0.35:
-                self._add_enemy(DiamondDasher(x, y, hp_scale))
-            elif r < 0.70:
-                self._add_enemy(HexagonBrute(x, y, hp_scale))
-            elif r < 0.85:
                 self._add_enemy(TriangleScout(x, y, hp_scale))
-            else:
-                self._add_enemy(SwarmMite(x, y, hp_scale))
 
     def _spawn_boss(self, player, hp_scale, obstacles=None):
         """Spawns a massive Colossus Boss off-screen scaled to the current difficulty."""

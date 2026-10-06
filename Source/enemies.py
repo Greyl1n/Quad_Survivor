@@ -9,7 +9,8 @@ from constants import (
     COLOR_ENEMY_TRIANGLE, COLOR_ENEMY_HEXAGON, COLOR_ENEMY_DIAMOND,
     COLOR_ENEMY_SWARM, COLOR_ENEMY_BOSS,
     COLOR_GEM_SMALL, COLOR_GEM_MEDIUM, COLOR_GEM_LARGE,
-    COLOR_HEALTH_PACK, COLOR_MAGNET, COLOR_BOMB, COLOR_HYPER_DROP
+    COLOR_HEALTH_PACK, COLOR_MAGNET, COLOR_BOMB, COLOR_HYPER_DROP,
+    COLOR_FORGE_TOME
 )
 from audio import audio
 
@@ -104,6 +105,25 @@ class DropItem:
             particle_manager.spawn_shockwave(player.x, player.y, max_radius=120.0, color=COLOR_HYPER_DROP)
             particle_manager.spawn_text(player.x, player.y - 28, "+10% ALL WEAPON DAMAGE!", COLOR_HYPER_DROP, duration=2.5, is_crit=True)
             audio.play("hyper_pickup", 1.0)
+        elif self.item_type == "forge_tome":
+            # Boss Reward: Overclocks and upgrades an active equipped weapon!
+            upgradable = [w for w in getattr(player, "weapons", []) if getattr(w, "unlocked", False) and w.level < w.max_level]
+            if upgradable:
+                chosen = random.choice(upgradable)
+                chosen.upgrade()
+                w_name = getattr(chosen, "name", "Weapon")
+                w_col = getattr(chosen, "color", COLOR_FORGE_TOME)
+                particle_manager.spawn_shockwave(player.x, player.y, max_radius=180.0, color=w_col)
+                particle_manager.spawn_text(player.x, player.y - 42, f"⚡ {w_name.upper()} UPGRADED TO LV {chosen.level}!", w_col, duration=3.2, is_crit=True)
+                audio.play("slash", 1.0)
+                audio.play("gem", 1.0)
+            else:
+                # If all equipped weapons are maxed, grant an instant level up / stat boost
+                player.pending_level_ups += 1
+                particle_manager.spawn_shockwave(player.x, player.y, max_radius=150.0, color=COLOR_FORGE_TOME)
+                particle_manager.spawn_text(player.x, player.y - 42, "⚡ CORE OVERCLOCKED: BONUS UPGRADE!", COLOR_FORGE_TOME, duration=3.0, is_crit=True)
+                audio.play("levelup", 1.0)
+                return True
         return False
 
     def draw(self, surface, camera):
@@ -162,6 +182,20 @@ class DropItem:
             pygame.draw.polygon(surface, COLOR_HYPER_DROP, pts)
             pygame.draw.polygon(surface, (255, 255, 255), pts, 1)
             pygame.draw.circle(surface, (255, 255, 255), (int(sx), int(sy)), 3)
+
+        elif self.item_type == "forge_tome":
+            # Glowing cyan/white kinetic Overclock Matrix cube
+            size = 14.0 + math.sin(self.spin_angle * 0.12) * 2.0
+            dim = int(size + 6)
+            surf = pygame.Surface((dim, dim), pygame.SRCALPHA)
+            # Radiant aura
+            pygame.draw.rect(surf, (140, 240, 255, 90), (0, 0, dim, dim), border_radius=4)
+            pygame.draw.rect(surf, COLOR_FORGE_TOME, (2, 2, int(size), int(size)), border_radius=3)
+            # Glowing core pip
+            core_s = max(3, int(size * 0.45))
+            pygame.draw.rect(surf, (255, 255, 255), ((dim - core_s) // 2, (dim - core_s) // 2, core_s, core_s))
+            rot_surf = pygame.transform.rotate(surf, self.spin_angle)
+            surface.blit(rot_surf, (sx - rot_surf.get_width() / 2, sy - rot_surf.get_height() / 2))
 
 
 # ==============================================================================
@@ -486,3 +520,304 @@ class ColossusBoss(Enemy):
         pygame.draw.rect(surface, (30, 10, 20), (bar_x - 1, bar_y - 1, bar_w + 2, bar_h + 2))
         fill_w = max(0, int(bar_w * (self.hp / self.max_hp)))
         pygame.draw.rect(surface, (255, 40, 80), (bar_x, bar_y, fill_w, bar_h))
+
+
+# ==============================================================================
+# BOSS LEVEL: OCTAGON OVERLORD & BOSS PROJECTILES (From user sketch)
+# ==============================================================================
+
+class BossProjectile:
+    """
+    Round energy orb projectile fired by the Octagon Boss.
+    Collides with player (dealing damage) and gets blocked by the 4 pillars or octagon boundary.
+    Directly matched with the round 'PROJECTILE' in the user's sketch.
+    """
+    def __init__(self, x, y, vx, vy, damage=22.0, radius=12.0, color=(255, 45, 95)):
+        self.x = float(x)
+        self.y = float(y)
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.damage = float(damage)
+        self.radius = float(radius)
+        self.color = color
+        self.alive = True
+        self.life = 7.0
+        self.pulse = random.uniform(0, math.pi * 2)
+
+    def update(self, dt):
+        self.pulse += 7.0 * dt
+        self.life -= dt
+        if self.life <= 0:
+            self.alive = False
+            return
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+
+    def draw(self, surface, camera):
+        if not camera.is_visible(self.x, self.y, self.radius + 12):
+            return
+        sx, sy = camera.world_to_screen(self.x, self.y)
+        ix, iy = int(sx), int(sy)
+        r = int(self.radius * camera.zoom)
+        if r < 2:
+            return
+
+        # Pulsing outer energy halo
+        halo_r = r + int((4 + 2 * math.sin(self.pulse)) * camera.zoom)
+        halo_surf = pygame.Surface((halo_r * 2 + 4, halo_r * 2 + 4), pygame.SRCALPHA)
+        pygame.draw.circle(halo_surf, (*self.color[:3], 65), (halo_r + 2, halo_r + 2), halo_r)
+        surface.blit(halo_surf, (ix - halo_r - 2, iy - halo_r - 2))
+
+        # Core round projectile (shaded circle as in sketch)
+        pygame.draw.circle(surface, self.color, (ix, iy), r)
+        # Inner energy eye/center
+        pygame.draw.circle(surface, (255, 235, 240), (ix, iy), max(2, int(r * 0.45)))
+
+
+class OctagonBoss(Enemy):
+    """
+    Apex Octagon Overlord boss encounter for the Boss Level.
+    Directly matched with user's sketch:
+    - Octagonal armored chassis with pulsing central eye/core ('O')
+    - 8 floating triangular spikes radiating outward from the 8 facets
+    - Fires round energy projectiles (Aimed bursts, 8-way Octa-Nova, rotating spiral stream)
+    - Periodically spawns yellow square Swarm Mites to provide XP
+    """
+    def __init__(self, x, y, hp_scale=1.0):
+        super().__init__(
+            x, y,
+            max_hp=1800.0 * hp_scale,
+            speed=65.0,
+            damage=22.0,
+            radius=58.0,
+            color=(255, 45, 95),  # Crimson / neon magenta
+            xp_value=120
+        )
+        self.is_boss = True
+        self.is_octagon_boss = True
+        self.rot = 0.0
+        self.spike_pulse = 0.0
+        self.eye_pulse = 0.0
+
+        # Attack cycle timers
+        self.attack_timer = 2.0
+        self.attack_phase = "idle"  # "idle", "burst", "nova", "spiral"
+        self.phase_timer = 0.0
+        self.burst_count = 0
+        self.spiral_count = 0
+
+        # Periodic yellow square summon timer (every ~5s)
+        self.summon_timer = 3.5
+        self.charge_flash = 0.0
+
+    def update_boss(self, dt, player, obstacles=None, boss_projectiles=None, spawner=None, particle_manager=None):
+        """
+        Advances the Octagon Boss state:
+        - Hover movement and boundary collision
+        - Round projectile attack routines (Aimed bursts, Octa-Nova, Spiral)
+        - Periodic yellow square SwarmMite summoning for player XP
+        """
+        super().update(dt, player, obstacles)
+        self.rot += 0.8 * dt
+        self.spike_pulse += 3.5 * dt
+        self.eye_pulse += 5.0 * dt
+        if self.charge_flash > 0:
+            self.charge_flash = max(0.0, self.charge_flash - 2.5 * dt)
+
+        # 1. Yellow Square Enemy Spawning ("time to time yellow square enemies are spawned to provide xp")
+        self.summon_timer -= dt
+        if self.summon_timer <= 0:
+            self.summon_timer = random.uniform(4.8, 6.2)
+            self._summon_yellow_squares(spawner, particle_manager)
+
+        # 2. Boss Attack State Machine
+        self.attack_timer -= dt
+        if self.attack_timer <= 0 and self.attack_phase == "idle":
+            self._advance_attack(player, boss_projectiles, particle_manager)
+
+        # Sub-attack timers (during active burst or spiral)
+        if self.attack_phase == "burst":
+            self.phase_timer -= dt
+            if self.phase_timer <= 0 and self.burst_count > 0:
+                self.phase_timer = 0.22
+                self.burst_count -= 1
+                self._fire_aimed_orb(player, boss_projectiles)
+                if self.burst_count <= 0:
+                    self.attack_phase = "idle"
+                    self.attack_timer = random.uniform(1.8, 2.6)
+
+        elif self.attack_phase == "spiral":
+            self.phase_timer -= dt
+            self.rot += 3.5 * dt  # Rapid spin during spiral!
+            if self.phase_timer <= 0 and self.spiral_count > 0:
+                self.phase_timer = 0.13
+                self.spiral_count -= 1
+                self._fire_spiral_orb(boss_projectiles)
+                if self.spiral_count <= 0:
+                    self.attack_phase = "idle"
+                    self.attack_timer = random.uniform(2.0, 2.8)
+
+    def update(self, dt, player, obstacles=None):
+        # Fallback for standard loop if called without boss params
+        self.update_boss(dt, player, obstacles)
+
+    def _advance_attack(self, player, boss_projectiles, particle_manager):
+        """Chooses next attack: Aimed Burst, 8-way Octa-Nova, or Spiral Stream."""
+        choices = ["burst", "nova", "spiral"]
+        self.attack_phase = random.choice(choices)
+        self.charge_flash = 1.0
+
+        if self.attack_phase == "burst":
+            self.burst_count = 4
+            self.phase_timer = 0.05
+        elif self.attack_phase == "nova":
+            # 8-way radial blast from all 8 triangular spikes!
+            self._fire_octa_nova(boss_projectiles, particle_manager)
+            self.attack_phase = "idle"
+            self.attack_timer = random.uniform(2.2, 3.0)
+        elif self.attack_phase == "spiral":
+            self.spiral_count = 14
+            self.phase_timer = 0.05
+
+    def _fire_aimed_orb(self, player, boss_projectiles):
+        if boss_projectiles is None:
+            return
+        dx = player.x - self.x
+        dy = player.y - self.y
+        dist = max(0.001, math.hypot(dx, dy))
+        speed = 300.0
+        spread = random.uniform(-0.12, 0.12)
+        angle = math.atan2(dy, dx) + spread
+        vx = math.cos(angle) * speed
+        vy = math.sin(angle) * speed
+        p = BossProjectile(self.x, self.y, vx, vy, damage=16.0, radius=11.0, color=(255, 60, 110))
+        boss_projectiles.append(p)
+        audio.play("laser", 0.7)
+
+    def _fire_octa_nova(self, boss_projectiles, particle_manager):
+        """Fires 8 round projectiles outward in all 8 directions from the 8 spikes!"""
+        if boss_projectiles is None:
+            return
+        speed = 260.0
+        for i in range(8):
+            a = self.rot + (i * math.pi / 4.0)
+            tip_dist = self.radius + 36.0
+            ox = self.x + math.cos(a) * tip_dist
+            oy = self.y + math.sin(a) * tip_dist
+            vx = math.cos(a) * speed
+            vy = math.sin(a) * speed
+            p = BossProjectile(ox, oy, vx, vy, damage=18.0, radius=12.0, color=(255, 140, 40))
+            boss_projectiles.append(p)
+
+        if particle_manager:
+            particle_manager.spawn_shockwave(self.x, self.y, max_radius=120.0, color=(255, 140, 40))
+        audio.play("arc_blade", 0.9)
+
+    def _fire_spiral_orb(self, boss_projectiles):
+        if boss_projectiles is None:
+            return
+        speed = 250.0
+        a = self.rot
+        vx = math.cos(a) * speed
+        vy = math.sin(a) * speed
+        p = BossProjectile(self.x, self.y, vx, vy, damage=14.0, radius=10.0, color=(255, 40, 180))
+        boss_projectiles.append(p)
+        audio.play("laser", 0.5)
+
+    def _summon_yellow_squares(self, spawner, particle_manager):
+        """Spawns 3-4 yellow square SwarmMite enemies around the boss to provide XP."""
+        if spawner is None:
+            return
+        count = random.randint(3, 4)
+        for _ in range(count):
+            angle = random.uniform(0, math.pi * 2)
+            dist = random.uniform(160, 260)
+            sx = self.x + math.cos(angle) * dist
+            sy = self.y + math.sin(angle) * dist
+            mite = SwarmMite(sx, sy, hp_scale=1.0)
+            spawner.enemies.append(mite)
+            if particle_manager:
+                particle_manager.spawn_sparks(sx, sy, (255, 230, 60), count=6, size=4)
+        audio.play("gem", 0.6)
+
+    def draw(self, surface, camera):
+        if not camera.is_visible(self.x, self.y, self.radius + 55):
+            return
+        sx, sy = camera.world_to_screen(self.x, self.y)
+        isx, isy = int(sx), int(sy)
+        zoom = camera.zoom
+
+        r_body = self.radius * zoom
+        base_col = (255, 255, 255) if self.flash_timer > 0 else (
+            (255, 200, 100) if self.charge_flash > 0 else self.color
+        )
+
+        # -------------------------------------------------------------
+        # 1. 8 Floating Triangular Spikes (Matching user's sketch)
+        # -------------------------------------------------------------
+        spike_float = math.sin(self.spike_pulse) * 4.0 * zoom
+        r_base = r_body + 10.0 * zoom + spike_float
+        r_tip = r_base + 32.0 * zoom
+        w_base = 22.0 * zoom
+
+        for i in range(8):
+            phi = self.rot + (i * math.pi / 4.0)
+            cos_p = math.cos(phi)
+            sin_p = math.sin(phi)
+
+            bcx = sx + cos_p * r_base
+            bcy = sy + sin_p * r_base
+
+            tx = -sin_p * (w_base / 2.0)
+            ty = cos_p * (w_base / 2.0)
+
+            pt_base1 = (bcx + tx, bcy + ty)
+            pt_base2 = (bcx - tx, bcy - ty)
+            pt_tip = (sx + cos_p * r_tip, sy + sin_p * r_tip)
+
+            spike_pts = [pt_base1, pt_tip, pt_base2]
+
+            spike_fill = (45, 18, 32) if self.flash_timer <= 0 else (255, 255, 255)
+            pygame.draw.polygon(surface, spike_fill, spike_pts)
+            pygame.draw.polygon(surface, base_col, spike_pts, max(1, int(3 * zoom)))
+
+            if self.charge_flash > 0:
+                pygame.draw.circle(surface, (255, 220, 60), (int(pt_tip[0]), int(pt_tip[1])), max(2, int(5 * zoom)))
+
+        # -------------------------------------------------------------
+        # 2. Central Octagon Body (Matching user's sketch)
+        # -------------------------------------------------------------
+        oct_pts = []
+        for i in range(8):
+            a = self.rot + math.pi / 8.0 + (i * math.pi / 4.0)
+            oct_pts.append((sx + math.cos(a) * r_body, sy + math.sin(a) * r_body))
+
+        body_fill = (28, 14, 24) if self.flash_timer <= 0 else (255, 255, 255)
+        pygame.draw.polygon(surface, body_fill, oct_pts)
+        pygame.draw.polygon(surface, base_col, oct_pts, max(2, int(4 * zoom)))
+
+        # -------------------------------------------------------------
+        # 3. Central Glowing Circular Eye/Core (Matching 'O' in sketch)
+        # -------------------------------------------------------------
+        eye_r = max(4, int(r_body * 0.42))
+        eye_pulse_r = eye_r + int(math.sin(self.eye_pulse) * 2.0 * zoom)
+        eye_col = (255, 220, 60) if self.charge_flash > 0 else (255, 50, 110)
+
+        pygame.draw.circle(surface, (20, 10, 18), (isx, isy), eye_pulse_r)
+        pygame.draw.circle(surface, eye_col, (isx, isy), eye_pulse_r, max(2, int(3 * zoom)))
+
+        pupil_r = max(2, int(eye_pulse_r * 0.45))
+        pygame.draw.circle(surface, (255, 240, 240), (isx, isy), pupil_r)
+
+        # -------------------------------------------------------------
+        # 4. Boss Health Bar (Above head)
+        # -------------------------------------------------------------
+        bar_w = int(100 * zoom)
+        bar_h = int(9 * zoom)
+        bar_x = isx - bar_w // 2
+        bar_y = isy - int(r_tip + 18 * zoom)
+        pygame.draw.rect(surface, (20, 8, 16), (bar_x - 1, bar_y - 1, bar_w + 2, bar_h + 2))
+        fill_w = max(0, int(bar_w * (self.hp / self.max_hp)))
+        pygame.draw.rect(surface, (255, 40, 80), (bar_x, bar_y, fill_w, bar_h))
+        pygame.draw.rect(surface, (255, 200, 60), (bar_x, bar_y, bar_w, bar_h), 1)
+
