@@ -28,7 +28,12 @@
 
 ## 🌟 Welcome & Game Premise
 
-**QUAD SURVIVOR: THE PIXEL SWARM** is a fast-paced action roguelite survivor game. Directly inspired by *Vampire Survivors* and built faithfully around hand-drawn conceptual blueprints ([`Source/reference.jpeg`](Source/reference.jpeg)), the game places you in control of an experimental cybernetic defense core: **The Quad**.
+**QUAD SURVIVOR: THE PIXEL SWARM** is a fast-paced action roguelite survivor game. Directly inspired by *Vampire Survivors* and built faithfully around hand-drawn conceptual blueprint sketches:
+- 📐 **Core Character & Weapons Blueprint**: [`Source/reference.jpeg`](Source/reference.jpeg)
+- 👑 **Octagon Sanctuary & Boss Overlord Blueprint**: [`Source/reference_boss.png`](Source/reference_boss.png)
+- 🌀 **Weapon Expansion Blueprint (Boomerang, Sonic Lash, Quantum Wind)**: [`Source/reference_weapons.png`](Source/reference_weapons.png)
+
+The game places you in control of an experimental cybernetic defense core: **The Quad**.
 
 Trapped in shifting digital dimensions, you must survive against relentless geometric horde swarms, gather scattered quantum energy gems, acquire and level up high-tech weaponry, and harness swirling **Dimensional Anomalies** to mutate the arena's physics and visual themes.
 
@@ -188,7 +193,7 @@ Every **3 completed genomes** (after Dimensions 3, 6, 9...), the player steps in
    - Symmetrically anchored by **4 Tactical Energy Pillars** in the 4 quadrants ($X \pm 310, Y \pm 310$).
    - Pillars absorb and destroy incoming boss projectiles, rewarding tactical positioning and kiting cover.
 2. **Boss Design: The Apex Octagon Overlord**:
-   - Built faithfully from the mechanical blueprint sketch: an octagonal armored chassis, a central glowing circular core eye, and **8 floating exterior triangular spikes/fins** oriented outward around each facet.
+   - Built faithfully from the mechanical blueprint sketch ([`Source/reference_boss.png`](Source/reference_boss.png)): an octagonal armored chassis, a central glowing circular core eye, and **8 floating exterior triangular spikes/fins** oriented outward around each facet.
    - **Attack Patterns**:
      - **Aimed Orb Volley**: Rapid stream of heavy round projectiles targeting the Quad Core.
      - **Octa-Nova Blast**: Synchronized 8-way burst of round orbs fired outward from each of the 8 floating spikes.
@@ -250,6 +255,9 @@ Pixel_All/
 ├── README.md               # Quick overview & feature documentation
 ├── introductions.md        # Complete manual & architectural guide
 ├── Source/                 # Python Desktop Engine
+│   ├── reference.jpeg      # Core blueprint sketch (Quad character & weapons 1-5)
+│   ├── reference_boss.png  # Hand-drawn blueprint (Octagon sanctuary, pillars & boss)
+│   ├── reference_weapons.png # Hand-drawn blueprint (Boomerang, Sonic Lash, Quantum Wind)
 │   ├── main.py             # Master state machine, event dispatcher, and game loop
 │   ├── constants.py        # Colors, screen dimensions, physics, and balance constants
 │   ├── player.py           # Quad character physics, quadrant spring recoil, stats
