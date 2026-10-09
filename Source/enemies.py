@@ -98,7 +98,7 @@ class DropItem:
         elif self.item_type == "bomb":
             spawner.trigger_bomb(particle_manager, camera)
             particle_manager.spawn_text(player.x, player.y - 20, "SUPERNOVA BOMB!", (255, 160, 40))
-            audio.play("bomb", 1.0)
+            audio.play("bomb", 0.75)
         elif self.item_type == "hyper_core":
             player.base_damage_mult += 0.10
             player.damage_mult += 0.10

@@ -117,20 +117,24 @@ class WaveSpawner:
                                 value=18
                             ))
                     elif e.is_boss:
-                        # Colossus Boss Defeat: Overclock Weapon Matrix + Guaranteed large gem + health pack + rare Hyper Core!
+                        # Colossus Boss Defeat: Overclock Weapon Matrix + Guaranteed large gem + health pack + rare Hyper Core (35% chance)!
                         self.drops.append(DropItem(e.x - 20, e.y, "forge_tome"))
                         self.drops.append(DropItem(e.x, e.y, "gem", value=35))
                         self.drops.append(DropItem(e.x + 20, e.y, "health"))
-                        self.drops.append(DropItem(e.x, e.y - 20, "hyper_core"))
-                    elif drop_roll < 0.012:
-                        # Extra rare in-field drop: +10% Damage to all weapons!
+                        if random.random() < 0.35:
+                            self.drops.append(DropItem(e.x, e.y - 20, "hyper_core"))
+                    elif drop_roll < 0.0020:
+                        # Extra rare in-field drop: +10% Damage to all weapons! (0.2%, 1 in 500 enemies)
                         self.drops.append(DropItem(e.x, e.y, "hyper_core"))
-                    elif drop_roll < 0.027:
-                        self.drops.append(DropItem(e.x, e.y, "health"))
-                    elif drop_roll < 0.037:
-                        self.drops.append(DropItem(e.x, e.y, "magnet"))
-                    elif drop_roll < 0.047:
+                    elif drop_roll < 0.0045:
+                        # Rare tactical screen-wipe Supernova Bomb (0.25%, 1 in 400 enemies)
                         self.drops.append(DropItem(e.x, e.y, "bomb"))
+                    elif drop_roll < 0.0115:
+                        # Graviton Magnet (0.7%, 1 in 143 enemies)
+                        self.drops.append(DropItem(e.x, e.y, "magnet"))
+                    elif drop_roll < 0.0250:
+                        # Health Pack (1.35%, 1 in 74 enemies)
+                        self.drops.append(DropItem(e.x, e.y, "health"))
                     else:
                         self.drops.append(DropItem(e.x, e.y, "gem", value=e.xp_value))
             else:

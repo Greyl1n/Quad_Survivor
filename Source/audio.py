@@ -156,13 +156,32 @@ class SoundManager:
         wave = wave * 0.4
         self.sounds["levelup"] = self._make_sound(wave)
 
-        # 11. Screen Bomb (massive explosion roar)
-        duration = 0.6
+        # 11. Screen Bomb (cinematic warm sub-bass explosion roar - non-distorting)
+        duration = 0.7
         t = np.linspace(0, duration, int(sample_rate * duration), False)
-        noise = (np.random.rand(len(t)) * 2 - 1) * 0.6
-        sub_bass = np.sin(2 * np.pi * np.linspace(90, 25, len(t)) * t) * 0.7
-        env = np.exp(-t * 5)
-        wave = (noise + sub_bass) * env * 0.6
+        # Low-pass filter noise to eliminate all sharp high-frequency sizzle
+        raw_noise = (np.random.rand(len(t)) * 2 - 1)
+        filtered_noise = np.zeros_like(raw_noise)
+        alpha = 0.035  # ~240 Hz cutoff at 44.1kHz
+        val = 0.0
+        for i in range(len(raw_noise)):
+            val += alpha * (raw_noise[i] - val)
+            filtered_noise[i] = val
+        max_n = np.max(np.abs(filtered_noise))
+        if max_n > 0:
+            filtered_noise = (filtered_noise / max_n) * 0.35
+
+        # Warm deep sub-bass pitch drop (110 Hz down to 32 Hz)
+        freq_sweep = np.geomspace(110, 32, len(t))
+        phase = 2 * np.pi * np.cumsum(freq_sweep) / sample_rate
+        sub_bass = np.sin(phase) * 0.55
+        sub_warmth = np.sin(phase * 0.5) * 0.25
+
+        # Smooth attack ramp to prevent speaker-popping transients + warm decay
+        attack = np.minimum(1.0, t / 0.02)
+        decay = np.exp(-t * 3.8)
+        env = attack * decay
+        wave = (sub_bass + sub_warmth + filtered_noise) * env * 0.38
         self.sounds["bomb"] = self._make_sound(wave)
 
         # 12. Dimensional Warp (ascending cosmic whoosh + sub drop)

@@ -718,13 +718,28 @@
           osc.start(t);
           osc.stop(t + 0.22);
         } else if (name === 'bomb') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(220, t);
-          osc.frequency.exponentialRampToValueAtTime(30, t + 0.5);
-          gain.gain.setValueAtTime(v * 1.5, t);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          // Warm cinematic sub-bass explosion with low-pass filter to eliminate harshness/distortion
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(260, t);
+          filter.frequency.exponentialRampToValueAtTime(60, t + 0.65);
+          filter.Q.setValueAtTime(1.2, t);
+
+          osc.disconnect();
+          osc.connect(filter);
+          filter.connect(gain);
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(120, t);
+          osc.frequency.exponentialRampToValueAtTime(28, t + 0.65);
+
+          // Smooth 20ms attack ramp to eliminate speaker click/pop, then smooth exponential decay
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(v * 0.75, t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+
           osc.start(t);
-          osc.stop(t + 0.5);
+          osc.stop(t + 0.65);
         } else if (name === 'warp') {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(150, t);
@@ -1711,7 +1726,7 @@
       } else if (this.type === 'bomb') {
         spawner.triggerBomb(particles, cam);
         particles.spawnText(player.x, player.y - 20, 'SUPERNOVA BOMB!', '#ff8020');
-        audio.play('bomb', 1.0);
+        audio.play('bomb', 0.75);
       } else if (this.type === 'hyper_core') {
         player.baseDamageMult += 0.10;
         player.damageMult += 0.10;
@@ -3866,15 +3881,21 @@
               this.drops.push(new DropItem(e.x - 20, e.y, 'forge_tome'));
               this.drops.push(new DropItem(e.x, e.y, 'gem', 35));
               this.drops.push(new DropItem(e.x + 20, e.y, 'health'));
-              this.drops.push(new DropItem(e.x, e.y - 20, 'hyper_core'));
-            } else if (r < 0.012) {
+              if (Math.random() < 0.35) {
+                this.drops.push(new DropItem(e.x, e.y - 20, 'hyper_core'));
+              }
+            } else if (r < 0.0020) {
+              // Extra rare in-field drop: +10% Damage to all weapons! (0.2%, 1 in 500 enemies)
               this.drops.push(new DropItem(e.x, e.y, 'hyper_core'));
-            } else if (r < 0.027) {
-              this.drops.push(new DropItem(e.x, e.y, 'health'));
-            } else if (r < 0.037) {
-              this.drops.push(new DropItem(e.x, e.y, 'magnet'));
-            } else if (r < 0.047) {
+            } else if (r < 0.0045) {
+              // Rare tactical screen-wipe Supernova Bomb (0.25%, 1 in 400 enemies)
               this.drops.push(new DropItem(e.x, e.y, 'bomb'));
+            } else if (r < 0.0115) {
+              // Graviton Magnet (0.7%, 1 in 143 enemies)
+              this.drops.push(new DropItem(e.x, e.y, 'magnet'));
+            } else if (r < 0.0250) {
+              // Health Pack (1.35%, 1 in 74 enemies)
+              this.drops.push(new DropItem(e.x, e.y, 'health'));
             } else {
               this.drops.push(new DropItem(e.x, e.y, 'gem', e.xpVal));
             }
