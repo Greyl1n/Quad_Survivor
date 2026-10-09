@@ -31,6 +31,9 @@ An action roguelite survivor game built with Python & Pygame, inspired by *Vampi
 | **#7 Sequential Arc** | **Cascade Barrage** | 2.2s → 1.3s (26 → 56 dmg) | Fires 5 to 9 quantum cubes sweeping rhythmically one-by-one from top to bottom across a directed arc. Upgrades into Twin Front & Back cascade salvos with piercing rounds. |
 | **#8 Expanding Crescent** | **Shockwave Arc** | 2.5s → 1.4s (38 → 105 dmg) | Synchronized forward crescent arc wave of 5 to 9 quantum cubes launched simultaneously with high piercing and heavy kinetic knockback (340-540 force). Upgrades to Dual 360° front & rear Nova Crescents! |
 | **#9 Explosive Mortar** | **Blast Cube** | 3.2s → 1.9s (70 → 220 dmg) | Heavy explosive mortar cube launched at enemy clusters, detonating into a massive 95px to 210px radial explosion with screen shake, shockwaves, and secondary cluster shrapnel bomblets! |
+| **#10 Parabolic Return** | **Quantum Boomerang** | 2.4s → 1.35s (38 → 98 dmg) | Aerodynamic crescent boomerangs that loop outward along a wide parabolic trajectory and return smoothly to the Quad Core, slicing through hordes on both outbound and return paths. Upgrades to Dual Opposing, Tri-Blade Fan, and 4-way 360° Singularity vortices! |
+| **#11 Concussive Ripple** | **Sonic Lash** | 1.8s → 1.15s (32 → 95 dmg) | Expanding concentric sound-wave crescents (3 cascading ripples) surging ahead of the player with deep piercing and heavy acoustic knockback (320-560 force). Upgrades to wider 120° acoustic arcs and Dual Front & Back sonic whips! |
+| **#12 Cardinal Wave** | **Quantum Wind** | 2.6s → 1.5s (34 → 98 dmg) | Serpentine undulating wind currents traveling outward in the 4 cardinal directions (North, South, East, West) with high piercing and continuous slicing trails. Upgrades into an 8-way Octa-Vortex and Tempest Maelstrom! |
 
 ---
 

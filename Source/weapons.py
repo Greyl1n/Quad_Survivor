@@ -14,7 +14,8 @@ from constants import (
     COLOR_CUBE_SHOT, COLOR_ARC_BLADE,
     COLOR_CLUSTER_VOLLEY, COLOR_CRESCENT_TEMPEST,
     COLOR_CUTTING_BEAM, COLOR_SPIRAL_CUBE, COLOR_CASCADE_BARRAGE,
-    COLOR_SHOCKWAVE_ARC, COLOR_BLAST_CUBE
+    COLOR_SHOCKWAVE_ARC, COLOR_BLAST_CUBE,
+    COLOR_QUANTUM_BOOMERANG, COLOR_SONIC_LASH, COLOR_QUANTUM_WIND
 )
 from audio import audio
 
@@ -570,6 +571,242 @@ class BlastCubeProjectile(Projectile):
         pygame.draw.rect(surf, (255, 235, 120), ((dim - core_s) // 2, (dim - core_s) // 2, core_s, core_s))
         rot_surf = pygame.transform.rotate(surf, self.spin)
         surface.blit(rot_surf, (sx - rot_surf.get_width() / 2, sy - rot_surf.get_height() / 2))
+
+
+# 10. QUANTUM BOOMERANG PROJECTILE (From User Sketch #1)
+class QuantumBoomerangProjectile(Projectile):
+    """
+    Curving crescent boomerang projectile:
+    - Launches forward and sweeps outward in a wide parabolic arc
+    - Reverses direction smoothly and returns to the player's position
+    - Pierces infinitely through enemies on both outbound and return journeys
+    """
+    def __init__(self, x, y, base_angle, damage, max_distance=380.0, flight_time=1.4, curve_direction=1.0, size=24.0):
+        super().__init__(x, y, damage, pierce=999)
+        self.origin_x = float(x)
+        self.origin_y = float(y)
+        self.base_angle = float(base_angle)
+        self.max_distance = float(max_distance)
+        self.flight_time = float(flight_time)
+        self.curve_direction = float(curve_direction)  # +1.0 for right/top curve, -1.0 for left/bottom
+        self.elapsed = 0.0
+        self.size = float(size)
+        self.color = COLOR_QUANTUM_BOOMERANG
+        self.spin = 0.0
+        self.width = size
+        self.height = size
+
+    def update(self, dt, player=None):
+        self.elapsed += dt
+        t_norm = min(1.0, self.elapsed / self.flight_time)
+        self.spin += 720.0 * dt
+
+        # Parabolic looping flight curve matching user's sketch (launch -> outward loop -> return)
+        # Forward displacement: peaks at t = 0.5
+        forward = math.sin(t_norm * math.pi) * self.max_distance
+        # Perpendicular lateral loop: expands outward
+        lateral = (1.0 - math.cos(t_norm * math.pi * 2.0)) * 0.5 * (self.max_distance * 0.42) * self.curve_direction
+
+        # Tangent frame
+        fwd_x = math.cos(self.base_angle)
+        fwd_y = math.sin(self.base_angle)
+        lat_x = -math.sin(self.base_angle)
+        lat_y = math.cos(self.base_angle)
+
+        # Anchor origin smoothly tracks player on return phase
+        orig_x = player.x if player else self.origin_x
+        orig_y = player.y if player else self.origin_y
+        lerp_ox = self.origin_x * (1.0 - t_norm) + orig_x * t_norm
+        lerp_oy = self.origin_y * (1.0 - t_norm) + orig_y * t_norm
+
+        self.x = lerp_ox + fwd_x * forward + lat_x * lateral
+        self.y = lerp_oy + fwd_y * forward + lat_y * lateral
+
+        if self.elapsed >= self.flight_time:
+            self.alive = False
+
+    def collides_with(self, enemy):
+        dist = math.hypot(self.x - enemy.x, self.y - enemy.y)
+        return dist <= (self.size * 0.5 + enemy.radius)
+
+    def draw(self, surface, camera):
+        if not self.alive or not camera.is_visible(self.x, self.y, self.size + 14):
+            return
+        sx, sy = camera.world_to_screen(self.x, self.y)
+        dim = int(self.size + 12)
+        surf = pygame.Surface((dim, dim), pygame.SRCALPHA)
+        # Draw aerodynamic curved boomerang crescent matching user sketch
+        rect_outer = pygame.Rect(4, 4, int(self.size), int(self.size))
+        pygame.draw.arc(surf, self.color, rect_outer, math.pi * 0.2, math.pi * 1.5, 5)
+        rect_inner = pygame.Rect(8, 8, int(self.size - 8), int(self.size - 8))
+        pygame.draw.arc(surf, (240, 255, 240), rect_inner, math.pi * 0.3, math.pi * 1.4, 2)
+        # Glowing tips
+        pygame.draw.circle(surf, (255, 255, 255), (int(dim * 0.2), int(dim * 0.75)), 3)
+        pygame.draw.circle(surf, (255, 255, 255), (int(dim * 0.8), int(dim * 0.25)), 3)
+
+        rot_surf = pygame.transform.rotate(surf, self.spin)
+        surface.blit(rot_surf, (sx - rot_surf.get_width() / 2, sy - rot_surf.get_height() / 2))
+
+
+# 11. SONIC LASH PROJECTILE (From User Sketch #2)
+class SonicLashProjectile(Projectile):
+    """
+    Expansive cascading sonic sound-wave arc:
+    - Launches forward in expanding concentric sound-wave crescents matching the sketch
+    - High pierce, wide arc coverage, and heavy concussive acoustic knockback
+    """
+    def __init__(self, x, y, vx, vy, angle, damage, arc_span=1.3, arc_radius=32.0, max_radius=85.0, speed_grow=280.0, pierce=4, knockback=280.0):
+        super().__init__(x, y, damage, pierce=pierce)
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.angle = float(angle)
+        self.arc_span = float(arc_span)  # Angular sweep in radians
+        self.radius = float(arc_radius)
+        self.max_radius = float(max_radius)
+        self.speed_grow = float(speed_grow)
+        self.knockback = float(knockback)
+        self.life = 0.55
+        self.total_life = 0.55
+        self.color = COLOR_SONIC_LASH
+        self.size = arc_radius * 2
+
+    def update(self, dt):
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.radius = min(self.max_radius, self.radius + self.speed_grow * dt)
+        self.size = self.radius * 2
+        self.life -= dt
+        if self.life <= 0:
+            self.alive = False
+
+    def collides_with(self, enemy):
+        dx = enemy.x - self.x
+        dy = enemy.y - self.y
+        dist = math.hypot(dx, dy)
+        if abs(dist - self.radius) > (enemy.radius + 16.0):
+            return False
+        ang = math.atan2(dy, dx)
+        diff = abs((ang - self.angle + math.pi) % (2 * math.pi) - math.pi)
+        return diff <= (self.arc_span / 2.0 + 0.25)
+
+    def draw(self, surface, camera):
+        if not self.alive or not camera.is_visible(self.x, self.y, self.radius + 16):
+            return
+        sx, sy = camera.world_to_screen(self.x, self.y)
+        alpha_frac = max(0.0, self.life / self.total_life)
+        dim = int((self.radius + 12) * 2)
+        surf = pygame.Surface((dim, dim), pygame.SRCALPHA)
+        cx, cy = dim // 2, dim // 2
+
+        # Draw concentric curved sonic arcs matching the 3 ripples in user sketch
+        start_ang = self.angle - self.arc_span / 2
+        end_ang = self.angle + self.arc_span / 2
+        # Pygame arc angles are counter-clockwise from positive x-axis
+        p_start = -end_ang
+        p_end = -start_ang
+
+        r = self.radius
+        rect_main = pygame.Rect(cx - r, cy - r, r * 2, r * 2)
+        main_col = (*self.color[:3], int(255 * alpha_frac))
+        pygame.draw.arc(surf, main_col, rect_main, p_start, p_end, 5)
+
+        # Inner secondary ripple
+        r_sub = max(6, r - 12)
+        rect_sub = pygame.Rect(cx - r_sub, cy - r_sub, r_sub * 2, r_sub * 2)
+        sub_col = (255, 230, 250, int(210 * alpha_frac))
+        pygame.draw.arc(surf, sub_col, rect_sub, p_start, p_end, 3)
+
+        # Concentric crest pips
+        for frac in [0.2, 0.5, 0.8]:
+            a_pip = start_ang + self.arc_span * frac
+            px = cx + math.cos(a_pip) * r
+            py = cy + math.sin(a_pip) * r
+            pygame.draw.circle(surf, (255, 255, 255, int(255 * alpha_frac)), (int(px), int(py)), 3)
+
+        surface.blit(surf, (sx - cx, sy - cy))
+
+
+# 12. QUANTUM WIND PROJECTILE (From User Sketch #3)
+class QuantumWindProjectile(Projectile):
+    """
+    Sinuous undulating quantum wind current:
+    - Travels outward in 4 cardinal directions matching user's sketch
+    - Undulates with a sine-wave serpentine lateral oscillation
+    - Gusts push enemies away, piercing and slicing continuous lines
+    """
+    def __init__(self, x, y, base_angle, damage, speed=380.0, frequency=14.0, amplitude=26.0, pierce=3, size=16.0, knockback=240.0):
+        super().__init__(x, y, damage, pierce=pierce)
+        self.base_angle = float(base_angle)
+        self.speed = float(speed)
+        self.frequency = float(frequency)
+        self.amplitude = float(amplitude)
+        self.knockback = float(knockback)
+        self.size = float(size)
+        self.color = COLOR_QUANTUM_WIND
+        self.life = 1.35
+        self.total_life = 1.35
+        self.elapsed = 0.0
+        self.center_x = float(x)
+        self.center_y = float(y)
+        self.history = []
+
+    def update(self, dt):
+        self.elapsed += dt
+        self.life -= dt
+        if self.life <= 0:
+            self.alive = False
+            return
+
+        # Advance along base vector
+        dist_forward = self.speed * dt
+        fwd_x = math.cos(self.base_angle)
+        fwd_y = math.sin(self.base_angle)
+        self.center_x += fwd_x * dist_forward
+        self.center_y += fwd_y * dist_forward
+
+        # Perpendicular sinusoidal wave oscillation
+        lat_x = -fwd_y
+        lat_y = fwd_x
+        wave_disp = math.sin(self.elapsed * self.frequency) * self.amplitude
+
+        self.x = self.center_x + lat_x * wave_disp
+        self.y = self.center_y + lat_y * wave_disp
+
+        # Record recent trace points for sinuous wind gust trail
+        self.history.append((self.x, self.y))
+        if len(self.history) > 10:
+            self.history.pop(0)
+
+    def collides_with(self, enemy):
+        dist = math.hypot(self.x - enemy.x, self.y - enemy.y)
+        return dist <= (self.size * 0.5 + enemy.radius)
+
+    def draw(self, surface, camera):
+        if not self.alive or not camera.is_visible(self.x, self.y, self.size + 14):
+            return
+        sx, sy = camera.world_to_screen(self.x, self.y)
+        alpha_frac = max(0.0, self.life / self.total_life)
+
+        # Draw sinuous wind trace ribbon
+        if len(self.history) >= 2:
+            pts = [camera.world_to_screen(hx, hy) for hx, hy in self.history]
+            pygame.draw.lines(surface, self.color, False, pts, 3)
+            # Inner white core ribbon
+            pygame.draw.lines(surface, (240, 235, 255), False, pts, 1)
+
+        # Wind front gust head (aerodynamic vapor diamond)
+        hd = int(self.size)
+        surf = pygame.Surface((hd + 6, hd + 6), pygame.SRCALPHA)
+        hc = (hd + 6) // 2
+        rot_pts = [
+            (hc + math.cos(self.base_angle) * (hd * 0.5), hc + math.sin(self.base_angle) * (hd * 0.5)),
+            (hc + math.cos(self.base_angle + 2.1) * (hd * 0.35), hc + math.sin(self.base_angle + 2.1) * (hd * 0.35)),
+            (hc + math.cos(self.base_angle + math.pi) * (hd * 0.2), hc + math.sin(self.base_angle + math.pi) * (hd * 0.2)),
+            (hc + math.cos(self.base_angle - 2.1) * (hd * 0.35), hc + math.sin(self.base_angle - 2.1) * (hd * 0.35))
+        ]
+        pygame.draw.polygon(surf, (*self.color[:3], int(240 * alpha_frac)), rot_pts)
+        pygame.draw.polygon(surf, (255, 255, 255, int(255 * alpha_frac)), rot_pts, 1)
+        surface.blit(surf, (sx - hc, sy - hc))
 
 
 # ==============================================================================
@@ -1435,4 +1672,335 @@ class BlastCubeWeapon(WeaponBase):
                 particle_manager.spawn_sparks(player.x, player.y, COLOR_BLAST_CUBE, count=4, size=4)
 
             audio.play("blast_launch", 0.7)
+
+
+# 10. QUANTUM BOOMERANG WEAPON (From User Sketch #1)
+class QuantumBoomerangWeapon(WeaponBase):
+    """
+    Weapon #10: Quantum Boomerang
+    Launches piercing aerodynamic crescent boomerangs that loop out in a wide parabolic arc
+    and return back to the Quad Core, cleaving through hordes on both outbound and return flight.
+    """
+    def __init__(self):
+        super().__init__(
+            name="Quantum Boomerang",
+            description="Launches piercing crescent boomerangs that loop out and return to the Quad Core.",
+            color=COLOR_QUANTUM_BOOMERANG,
+            max_level=5
+        )
+        self.cooldown = 2.4
+        self.damage = 38.0
+        self.count = 1
+        self.max_distance = 360.0
+        self.flight_time = 1.35
+        self.size = 22.0
+
+    def get_next_upgrade_info(self):
+        if self.level == 0:
+            return "Unlock: Launches 1 curving Quantum Boomerang that returns to core."
+        elif self.level == 1:
+            return "Lv 2: Dual Return: Launches 2 opposing boomerangs (left & right curves)."
+        elif self.level == 2:
+            return "Lv 3: Graviton Reach: +25% Flight range and +30% damage."
+        elif self.level == 3:
+            return "Lv 4: Tri-Blade Helix: Launches 3 synchronized boomerangs in an expanding fan."
+        elif self.level == 4:
+            return "Lv 5: Quantum Singularity: 4 Quad Boomerangs sweeping wide 360° return vortices!"
+        return "MAX LEVEL"
+
+    def on_upgrade(self):
+        if self.level == 1:
+            self.count = 1
+            self.cooldown = 2.4
+            self.damage = 38.0
+            self.max_distance = 360.0
+            self.flight_time = 1.35
+            self.size = 22.0
+        elif self.level == 2:
+            self.count = 2
+            self.cooldown = 2.1
+            self.damage = 48.0
+            self.max_distance = 400.0
+            self.size = 24.0
+        elif self.level == 3:
+            self.count = 2
+            self.cooldown = 1.8
+            self.damage = 62.0
+            self.max_distance = 450.0
+            self.flight_time = 1.45
+            self.size = 26.0
+        elif self.level == 4:
+            self.count = 3
+            self.cooldown = 1.55
+            self.damage = 78.0
+            self.max_distance = 490.0
+            self.size = 28.0
+        elif self.level == 5:
+            self.count = 4
+            self.cooldown = 1.35
+            self.damage = 98.0
+            self.max_distance = 540.0
+            self.flight_time = 1.55
+            self.size = 30.0
+
+    def update(self, dt, player, enemies, active_projectiles, particle_manager, camera):
+        if not self.unlocked:
+            return
+
+        self.timer -= dt
+        if self.timer <= 0:
+            self.timer = self.cooldown * player.cooldown_mult
+
+            # Target nearest enemy or player facing angle
+            aim_angle = player.facing_angle
+            if enemies:
+                nearest = min(enemies, key=lambda e: math.hypot(e.x - player.x, e.y - player.y))
+                aim_angle = math.atan2(nearest.y - player.y, nearest.x - player.x)
+
+            for i in range(self.count):
+                if self.count == 1:
+                    ang = aim_angle
+                    curve_dir = 1.0
+                elif self.count == 2:
+                    ang = aim_angle
+                    curve_dir = 1.0 if i == 0 else -1.0
+                elif self.count == 3:
+                    ang = aim_angle + (i - 1) * 0.35
+                    curve_dir = 1.0 if i % 2 == 0 else -1.0
+                else:
+                    ang = aim_angle + (i * math.pi / 2.0)
+                    curve_dir = 1.0 if i % 2 == 0 else -1.0
+
+                p = QuantumBoomerangProjectile(
+                    player.x, player.y,
+                    base_angle=ang,
+                    damage=self.damage * player.damage_mult,
+                    max_distance=self.max_distance,
+                    flight_time=self.flight_time,
+                    curve_direction=curve_dir,
+                    size=self.size
+                )
+                active_projectiles.append(p)
+
+            particle_manager.spawn_sparks(player.x, player.y, self.color, count=4, size=3)
+            audio.play("boomerang_throw", 0.75)
+
+
+# 11. SONIC LASH WEAPON (From User Sketch #2)
+class SonicLashWeapon(WeaponBase):
+    """
+    Weapon #11: Sonic Lash
+    Fires rapid cascading crescents of concussive acoustic sound waves directly ahead,
+    expanding in width and pushing enemies back with heavy concussive force.
+    """
+    def __init__(self):
+        super().__init__(
+            name="Sonic Lash",
+            description="Projects expanding cascading crescents of concussive sonic sound waves.",
+            color=COLOR_SONIC_LASH,
+            max_level=5
+        )
+        self.cooldown = 1.8
+        self.damage = 32.0
+        self.wave_count = 3  # Matches the 3 concentric ripples in user sketch!
+        self.arc_span = 1.3
+        self.pierce = 5
+        self.knockback = 320.0
+        self.speed = 480.0
+        self.dual_whip = False
+
+    def get_next_upgrade_info(self):
+        if self.level == 0:
+            return "Unlock: Unleashes 3 cascading sonic crescents in front of the Quad Core."
+        elif self.level == 1:
+            return "Lv 2: Resonance Pulse: +35% Damage and higher acoustic pierce (8 targets)."
+        elif self.level == 2:
+            return "Lv 3: Macro-Acoustics: Wider 100° sonic arc and +40% expansion radius."
+        elif self.level == 3:
+            return "Lv 4: Sonic Rupture: Rapid 1.3s cooldown and heavy kinetic knockback (480 force)."
+        elif self.level == 4:
+            return "Lv 5: Dual Sonic Lash: Fires synchronized twin shockwaves Front AND Back!"
+        return "MAX LEVEL"
+
+    def on_upgrade(self):
+        if self.level == 1:
+            self.cooldown = 1.8
+            self.damage = 32.0
+            self.wave_count = 3
+            self.arc_span = 1.3
+            self.pierce = 5
+            self.knockback = 320.0
+            self.dual_whip = False
+        elif self.level == 2:
+            self.cooldown = 1.6
+            self.damage = 44.0
+            self.pierce = 8
+            self.knockback = 360.0
+        elif self.level == 3:
+            self.cooldown = 1.45
+            self.damage = 58.0
+            self.arc_span = 1.65
+            self.pierce = 10
+            self.knockback = 420.0
+        elif self.level == 4:
+            self.cooldown = 1.3
+            self.damage = 74.0
+            self.wave_count = 4
+            self.arc_span = 1.85
+            self.pierce = 14
+            self.knockback = 480.0
+        elif self.level == 5:
+            self.cooldown = 1.15
+            self.damage = 95.0
+            self.wave_count = 4
+            self.arc_span = 2.1
+            self.pierce = 20
+            self.knockback = 560.0
+            self.dual_whip = True
+
+    def update(self, dt, player, enemies, active_projectiles, particle_manager, camera):
+        if not self.unlocked:
+            return
+
+        self.timer -= dt
+        if self.timer <= 0:
+            self.timer = self.cooldown * player.cooldown_mult
+
+            # Target closest enemy or player facing angle
+            aim_angle = player.facing_angle
+            if enemies:
+                nearest = min(enemies, key=lambda e: math.hypot(e.x - player.x, e.y - player.y))
+                aim_angle = math.atan2(nearest.y - player.y, nearest.x - player.x)
+
+            directions = [aim_angle]
+            if self.dual_whip:
+                directions.append(aim_angle + math.pi)
+
+            for d_ang in directions:
+                for w_idx in range(self.wave_count):
+                    offset_dist = 18.0 + w_idx * 16.0
+                    sx = player.x + math.cos(d_ang) * offset_dist
+                    sy = player.y + math.sin(d_ang) * offset_dist
+                    vx = math.cos(d_ang) * (self.speed + w_idx * 40.0)
+                    vy = math.sin(d_ang) * (self.speed + w_idx * 40.0)
+                    p = SonicLashProjectile(
+                        sx, sy, vx, vy,
+                        angle=d_ang,
+                        damage=self.damage * player.damage_mult,
+                        arc_span=self.arc_span,
+                        arc_radius=22.0 + w_idx * 8.0,
+                        max_radius=75.0 + w_idx * 18.0,
+                        speed_grow=260.0,
+                        pierce=self.pierce,
+                        knockback=self.knockback
+                    )
+                    active_projectiles.append(p)
+
+            camera.shake(3.5, 0.15)
+            particle_manager.spawn_shockwave(player.x, player.y, max_radius=85.0, color=self.color)
+            audio.play("sonic_lash", 0.7)
+
+
+# 12. QUANTUM WIND WEAPON (From User Sketch #3)
+class QuantumWindWeapon(WeaponBase):
+    """
+    Weapon #12: Quantum Wind
+    Projects 4 sinuous, serpentine undulating wind currents traveling outward
+    in the 4 cardinal directions around the Quad Core, pushing and slicing enemies.
+    """
+    def __init__(self):
+        super().__init__(
+            name="Quantum Wind",
+            description="Emanates 4 undulating quantum wind currents in all directions.",
+            color=COLOR_QUANTUM_WIND,
+            max_level=5
+        )
+        self.cooldown = 2.6
+        self.damage = 34.0
+        self.speed = 380.0
+        self.frequency = 14.0
+        self.amplitude = 26.0
+        self.pierce = 4
+        self.directions_count = 4  # Matches 4 squiggly lines in user sketch!
+        self.knockback = 280.0
+
+    def get_next_upgrade_info(self):
+        if self.level == 0:
+            return "Unlock: Projects 4 serpentine wind currents (North, South, East, West)."
+        elif self.level == 1:
+            return "Lv 2: Aero Turbulence: +30% Damage and increased wave oscillation."
+        elif self.level == 2:
+            return "Lv 3: Gale Surge: -20% Cooldown and piercing force (7 enemies per gust)."
+        elif self.level == 3:
+            return "Lv 4: Octa-Vortex: Projects 8 sinuous wind currents in all directions!"
+        elif self.level == 4:
+            return "Lv 5: Tempest Maelstrom: 8 mega-gale streams with continuous slicing trails!"
+        return "MAX LEVEL"
+
+    def on_upgrade(self):
+        if self.level == 1:
+            self.cooldown = 2.6
+            self.damage = 34.0
+            self.speed = 380.0
+            self.frequency = 14.0
+            self.amplitude = 26.0
+            self.pierce = 4
+            self.directions_count = 4
+            self.knockback = 280.0
+        elif self.level == 2:
+            self.cooldown = 2.3
+            self.damage = 46.0
+            self.amplitude = 32.0
+            self.pierce = 6
+            self.knockback = 320.0
+        elif self.level == 3:
+            self.cooldown = 2.0
+            self.damage = 60.0
+            self.speed = 430.0
+            self.pierce = 8
+            self.knockback = 360.0
+        elif self.level == 4:
+            self.cooldown = 1.75
+            self.damage = 76.0
+            self.directions_count = 8
+            self.pierce = 10
+            self.knockback = 420.0
+        elif self.level == 5:
+            self.cooldown = 1.5
+            self.damage = 98.0
+            self.directions_count = 8
+            self.speed = 490.0
+            self.amplitude = 38.0
+            self.pierce = 16
+            self.knockback = 490.0
+
+    def update(self, dt, player, enemies, active_projectiles, particle_manager, camera):
+        if not self.unlocked:
+            return
+
+        self.timer -= dt
+        if self.timer <= 0:
+            self.timer = self.cooldown * player.cooldown_mult
+
+            # Base orientation oscillates gently over time
+            base_offset = (pygame.time.get_ticks() / 1000.0) * 0.5
+            angle_step = (2 * math.pi) / self.directions_count
+
+            for i in range(self.directions_count):
+                ang = base_offset + (i * angle_step)
+                p = QuantumWindProjectile(
+                    player.x, player.y,
+                    base_angle=ang,
+                    damage=self.damage * player.damage_mult,
+                    speed=self.speed,
+                    frequency=self.frequency,
+                    amplitude=self.amplitude,
+                    pierce=self.pierce,
+                    size=16.0,
+                    knockback=self.knockback
+                )
+                active_projectiles.append(p)
+
+            particle_manager.spawn_shockwave(player.x, player.y, max_radius=110.0, color=self.color)
+            audio.play("quantum_wind", 0.75)
 

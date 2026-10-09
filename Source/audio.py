@@ -249,6 +249,35 @@ class SoundManager:
         wave = (np.sin(phase) * 0.7 + np.sin(phase * 2) * 0.15) * np.exp(-t * 35.0) * 0.45
         self.sounds["letter_blip"] = self._make_sound(wave)
 
+        # 20. Quantum Boomerang (whirring Doppler aerodynamic whoosh)
+        duration = 0.22
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        freq = 320 + 180 * np.sin(2 * np.pi * 18 * t)
+        phase = 2 * np.pi * np.cumsum(freq) / sample_rate
+        env = np.sin(np.pi * t / duration) ** 0.9
+        wave = (np.sin(phase) * 0.6 + (np.random.rand(len(t)) * 2 - 1) * 0.15) * env * 0.5
+        self.sounds["boomerang_throw"] = self._make_sound(wave)
+
+        # 21. Sonic Lash (sharp cracking sonic wave snap)
+        duration = 0.18
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        freq = np.linspace(1200, 180, len(t))
+        phase = 2 * np.pi * np.cumsum(freq) / sample_rate
+        saw = 2 * (phase / (2 * np.pi) - np.floor(phase / (2 * np.pi) + 0.5))
+        env = np.exp(-t * 22.0)
+        wave = (saw * 0.65 + (np.random.rand(len(t)) * 2 - 1) * 0.25) * env * 0.55
+        self.sounds["sonic_lash"] = self._make_sound(wave)
+
+        # 22. Quantum Wind (airy ethereal resonant gust)
+        duration = 0.28
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        freq = 240 + 60 * np.sin(2 * np.pi * 5 * t)
+        phase = 2 * np.pi * np.cumsum(freq) / sample_rate
+        noise = (np.random.rand(len(t)) * 2 - 1) * 0.45
+        env = np.sin(np.pi * t / duration) ** 1.2
+        wave = (np.sin(phase) * 0.4 + noise) * env * 0.45
+        self.sounds["quantum_wind"] = self._make_sound(wave)
+
     def get_genome_track(self, genome_name):
         """Retrieves or synthesizes the C64 SID sound instance for the specified Level Genome."""
         name = (genome_name or "CYBER-MATRIX").upper()

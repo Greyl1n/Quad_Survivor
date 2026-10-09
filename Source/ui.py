@@ -12,7 +12,9 @@ from constants import (
     COLOR_CUBE_SHOT, COLOR_ARC_BLADE, COLOR_CLUSTER_VOLLEY,
     COLOR_CRESCENT_TEMPEST, COLOR_CUTTING_BEAM,
     COLOR_SPIRAL_CUBE, COLOR_CASCADE_BARRAGE,
-    COLOR_SHOCKWAVE_ARC, COLOR_BLAST_CUBE, COLOR_HYPER_DROP,
+    COLOR_SHOCKWAVE_ARC, COLOR_BLAST_CUBE,
+    COLOR_QUANTUM_BOOMERANG, COLOR_SONIC_LASH, COLOR_QUANTUM_WIND,
+    COLOR_HYPER_DROP,
     DIFFICULTIES, DIFFICULTY_CONFIGS, DIFFICULTY_NORMAL
 )
 
@@ -349,6 +351,55 @@ class UIManager:
                 y2 = cy + math.sin(rad) * (s * 0.85)
                 ray_col = (255, 220, 60) if ang_deg % 90 == 0 else (255, 90, 40)
                 pygame.draw.line(surface, ray_col, (x1, y1), (x2, y2), 2)
+
+        elif "Boomerang" in name:
+            # Sketch 1: Quad core on left with curving looping trajectory and 2 crescents
+            px = cx - s * 0.45
+            for sx, sy in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+                pygame.draw.rect(surface, (0, 240, 220), (px + sx - 1, cy + sy - 1, 3, 3))
+            # Parabolic loop line
+            loop_rect = pygame.Rect(cx - s * 0.15, cy - s * 0.55, int(s * 0.85), int(s * 1.1))
+            pygame.draw.arc(surface, (200, 255, 200), loop_rect, -math.pi * 0.5, math.pi * 0.5, 2)
+            # Two returning/outbound crescents
+            top_arc = pygame.Rect(cx + s * 0.1, cy - s * 0.65, 14, 14)
+            bot_arc = pygame.Rect(cx + s * 0.1, cy + s * 0.15, 14, 14)
+            pygame.draw.arc(surface, color, top_arc, math.pi * 0.2, math.pi * 1.4, 3)
+            pygame.draw.arc(surface, color, bot_arc, math.pi * 0.6, math.pi * 1.8, 3)
+            pygame.draw.circle(surface, (255, 255, 255), (int(cx + s * 0.15), int(cy - s * 0.58)), 2)
+            pygame.draw.circle(surface, (255, 255, 255), (int(cx + s * 0.15), int(cy + s * 0.22)), 2)
+
+        elif "Sonic" in name or "Lash" in name:
+            # Sketch 2: Quad core on left with 3 expanding concentric sound crescents
+            px = cx - s * 0.45
+            for sx, sy in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+                pygame.draw.rect(surface, (0, 240, 220), (px + sx - 1, cy + sy - 1, 3, 3))
+            # 3 cascading sound wave ripples expanding outward
+            for r_idx, r_val in enumerate([s * 0.35, s * 0.55, s * 0.78]):
+                arc_rect = pygame.Rect(px - r_val, cy - r_val, int(r_val * 2), int(r_val * 2))
+                arc_w = 4 if r_idx == 2 else (3 if r_idx == 1 else 2)
+                pygame.draw.arc(surface, color, arc_rect, -math.pi * 0.35, math.pi * 0.35, arc_w)
+            pygame.draw.arc(surface, (255, 255, 255), pygame.Rect(px - s * 0.76, cy - s * 0.76, int(s * 1.52), int(s * 1.52)), -math.pi * 0.25, math.pi * 0.25, 1)
+
+        elif "Wind" in name:
+            # Sketch 3: Quad core at center with 4 sinuous waving curves (North, South, East, West)
+            for sx, sy in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+                pygame.draw.rect(surface, (0, 240, 220), (cx + sx - 1, cy + sy - 1, 3, 3))
+            # 4 sinuous wavy squiggles extending in 4 directions
+            # East & West
+            for sign in [1, -1]:
+                pts_h = []
+                for step in range(8):
+                    dist = (step + 1) * (s * 0.09)
+                    disp = math.sin(step * 1.1) * 3.5
+                    pts_h.append((cx + sign * dist, cy + disp))
+                pygame.draw.lines(surface, color, False, pts_h, 2)
+                # North & South
+                pts_v = []
+                for step in range(8):
+                    dist = (step + 1) * (s * 0.09)
+                    disp = math.sin(step * 1.1) * 3.5
+                    pts_v.append((cx + disp, cy + sign * dist))
+                pygame.draw.lines(surface, color, False, pts_v, 2)
 
         # 2. Stat Augments & Legendary
         elif "Hyper" in name or "Matrix" in name:
@@ -1331,8 +1382,11 @@ class UIManager:
             pygame.draw.rect(surface, (0, 240, 220), rect, border_radius=3)
             pygame.draw.rect(surface, (255, 255, 255), (rect.x + 7, rect.y + 7, quad_size - 14, quad_size - 14))
 
-        # 3. Weapon Preview Lineup (9 Unique Weapons)
-        wy = 295
+        # 3. Weapon Preview Lineup (12 Unique Blueprint Weapons)
+        wy = 275
+        hdr = self.font_mono.render("ARSENAL: 12 QUANTUM WEAPONS // AUTO-TARGETING & FIRING", True, (140, 160, 190))
+        surface.blit(hdr, (cx - hdr.get_width() // 2, wy))
+
         weapons_info = [
             ("Cube Shot", COLOR_CUBE_SHOT),
             ("Arc Blade", COLOR_ARC_BLADE),
@@ -1343,15 +1397,18 @@ class UIManager:
             ("Cascade Barrage", COLOR_CASCADE_BARRAGE),
             ("Shockwave Arc", COLOR_SHOCKWAVE_ARC),
             ("Blast Cube", COLOR_BLAST_CUBE),
+            ("Boomerang", COLOR_QUANTUM_BOOMERANG),
+            ("Sonic Lash", COLOR_SONIC_LASH),
+            ("Quantum Wind", COLOR_QUANTUM_WIND),
         ]
-        spacing = 118
+        spacing = 100
         total_w = len(weapons_info) * spacing
         start_wx = cx - total_w // 2 + spacing // 2
         for i, (wname, wcol) in enumerate(weapons_info):
             ix = start_wx + i * spacing
-            self._draw_weapon_icon(surface, wname, ix, wy + 16, 20, wcol)
+            self._draw_weapon_icon(surface, wname, ix, wy + 26, 20, wcol)
             label = self.font_small.render(wname, True, wcol)
-            surface.blit(label, (ix - label.get_width() // 2, wy + 34))
+            surface.blit(label, (ix - label.get_width() // 2, wy + 46))
 
         # 4. Interactive Difficulty Selector
         dy = 375

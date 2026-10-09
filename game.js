@@ -644,6 +644,32 @@
           gain.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
           osc.start(t);
           osc.stop(t + 0.48);
+        } else if (name === 'boomerang_throw') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, t);
+          osc.frequency.exponentialRampToValueAtTime(640, t + 0.12);
+          osc.frequency.exponentialRampToValueAtTime(260, t + 0.24);
+          gain.gain.setValueAtTime(v * 0.9, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+          osc.start(t);
+          osc.stop(t + 0.25);
+        } else if (name === 'sonic_lash') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(780, t);
+          osc.frequency.exponentialRampToValueAtTime(160, t + 0.12);
+          gain.gain.setValueAtTime(v * 1.0, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+          osc.start(t);
+          osc.stop(t + 0.14);
+        } else if (name === 'quantum_wind') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(190, t);
+          osc.frequency.linearRampToValueAtTime(340, t + 0.15);
+          osc.frequency.exponentialRampToValueAtTime(110, t + 0.32);
+          gain.gain.setValueAtTime(v * 0.85, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+          osc.start(t);
+          osc.stop(t + 0.35);
         } else if (name === 'hyper_pickup') {
           // Celestial C-Major arpeggio / chord
           const notes = [261.63, 329.63, 392.0, 523.25, 659.25, 783.99];
@@ -2203,6 +2229,278 @@
     }
   }
 
+  // 10. QUANTUM BOOMERANG PROJECTILE (From User Sketch #1)
+  class QuantumBoomerangProjectile extends Projectile {
+    constructor(x, y, baseAngle, dmg, maxDistance = 360, flightTime = 1.35, curveDir = 1.0, size = 22) {
+      super(x, y, dmg, 999);
+      this.originX = x;
+      this.originY = y;
+      this.baseAngle = baseAngle;
+      this.maxDistance = maxDistance;
+      this.flightTime = flightTime;
+      this.curveDir = curveDir;
+      this.size = size;
+      this.color = '#78ff64';
+      this.elapsed = 0;
+      this.spin = 0;
+      this.hasClearedForReturn = false;
+    }
+
+    update(dt, player = null) {
+      this.elapsed += dt;
+      const tNorm = Math.min(1.0, this.elapsed / this.flightTime);
+      this.spin += 12.0 * dt;
+
+      if (!this.hasClearedForReturn && tNorm >= 0.5) {
+        this.hitEnemies.clear();
+        this.hasClearedForReturn = true;
+      }
+
+      const forward = Math.sin(tNorm * Math.PI) * this.maxDistance;
+      const lateral = (1.0 - Math.cos(tNorm * Math.PI * 2.0)) * 0.5 * (this.maxDistance * 0.42) * this.curveDir;
+
+      const fwdX = Math.cos(this.baseAngle);
+      const fwdY = Math.sin(this.baseAngle);
+      const latX = -Math.sin(this.baseAngle);
+      const latY = Math.cos(this.baseAngle);
+
+      const origX = player ? player.x : this.originX;
+      const origY = player ? player.y : this.originY;
+      const lerpOx = this.originX * (1.0 - tNorm) + origX * tNorm;
+      const lerpOy = this.originY * (1.0 - tNorm) + origY * tNorm;
+
+      this.x = lerpOx + fwdX * forward + latX * lateral;
+      this.y = lerpOy + fwdY * forward + latY * lateral;
+
+      if (this.elapsed >= this.flightTime) {
+        this.alive = false;
+      }
+    }
+
+    collidesWith(enemy) {
+      const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
+      return dist <= (this.size * 0.5 + enemy.radius);
+    }
+
+    draw(ctx, cam) {
+      if (!this.alive || !cam.isVisible(this.x, this.y, this.size + 14)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(this.spin);
+
+      // Aerodynamic curved boomerang crescent matching user sketch
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 0.5, Math.PI * 0.2, Math.PI * 1.5);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#f0fff0';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.size * 0.35, Math.PI * 0.3, Math.PI * 1.4);
+      ctx.stroke();
+
+      // Glowing tips
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(this.size * 0.45 * Math.cos(Math.PI * 0.2), this.size * 0.45 * Math.sin(Math.PI * 0.2), 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(this.size * 0.45 * Math.cos(Math.PI * 1.5), this.size * 0.45 * Math.sin(Math.PI * 1.5), 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // 11. SONIC LASH PROJECTILE (From User Sketch #2)
+  class SonicLashProjectile extends Projectile {
+    constructor(x, y, vx, vy, angle, dmg, arcSpan = 1.3, arcRadius = 32, maxRadius = 85, speedGrow = 280, pierce = 5, knockback = 320) {
+      super(x, y, dmg, pierce);
+      this.vx = vx;
+      this.vy = vy;
+      this.angle = angle;
+      this.arcSpan = arcSpan;
+      this.radius = arcRadius;
+      this.maxRadius = maxRadius;
+      this.speedGrow = speedGrow;
+      this.knockback = knockback;
+      this.life = 0.55;
+      this.totalLife = 0.55;
+      this.color = '#ff3cb4';
+      this.size = arcRadius * 2;
+    }
+
+    update(dt) {
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.radius = Math.min(this.maxRadius, this.radius + this.speedGrow * dt);
+      this.size = this.radius * 2;
+      this.life -= dt;
+      if (this.life <= 0) {
+        this.alive = false;
+      }
+    }
+
+    collidesWith(enemy) {
+      const dx = enemy.x - this.x;
+      const dy = enemy.y - this.y;
+      const dist = Math.hypot(dx, dy);
+      if (Math.abs(dist - this.radius) > (enemy.radius + 16)) return false;
+      const ang = Math.atan2(dy, dx);
+      const diff = Math.abs((ang - this.angle + Math.PI) % (Math.PI * 2) - Math.PI);
+      return diff <= (this.arcSpan / 2 + 0.25);
+    }
+
+    draw(ctx, cam) {
+      if (!this.alive || !cam.isVisible(this.x, this.y, this.radius + 16)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+      const alphaFrac = Math.max(0, this.life / this.totalLife);
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.globalAlpha = alphaFrac;
+
+      const startAng = this.angle - this.arcSpan / 2;
+      const endAng = this.angle + this.arcSpan / 2;
+
+      // Outer primary sonic arc ripple
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, startAng, endAng);
+      ctx.stroke();
+
+      // Inner secondary ripple
+      const rSub = Math.max(6, this.radius - 12);
+      ctx.strokeStyle = '#ffe6fa';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, rSub, startAng, endAng);
+      ctx.stroke();
+
+      // Concentric crest pips
+      ctx.fillStyle = '#ffffff';
+      for (const frac of [0.2, 0.5, 0.8]) {
+        const aPip = startAng + this.arcSpan * frac;
+        ctx.beginPath();
+        ctx.arc(Math.cos(aPip) * this.radius, Math.sin(aPip) * this.radius, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+  }
+
+  // 12. QUANTUM WIND PROJECTILE (From User Sketch #3)
+  class QuantumWindProjectile extends Projectile {
+    constructor(x, y, baseAngle, dmg, speed = 380, frequency = 14, amplitude = 26, pierce = 4, size = 16, knockback = 280) {
+      super(x, y, dmg, pierce);
+      this.baseAngle = baseAngle;
+      this.speed = speed;
+      this.frequency = frequency;
+      this.amplitude = amplitude;
+      this.knockback = knockback;
+      this.size = size;
+      this.color = '#a082ff';
+      this.life = 1.35;
+      this.totalLife = 1.35;
+      this.elapsed = 0;
+      this.centerX = x;
+      this.centerY = y;
+      this.history = [];
+    }
+
+    update(dt) {
+      this.elapsed += dt;
+      this.life -= dt;
+      if (this.life <= 0) {
+        this.alive = false;
+        return;
+      }
+
+      const distFwd = this.speed * dt;
+      const fwdX = Math.cos(this.baseAngle);
+      const fwdY = Math.sin(this.baseAngle);
+      this.centerX += fwdX * distFwd;
+      this.centerY += fwdY * distFwd;
+
+      const latX = -fwdY;
+      const latY = fwdX;
+      const waveDisp = Math.sin(this.elapsed * this.frequency) * this.amplitude;
+
+      this.x = this.centerX + latX * waveDisp;
+      this.y = this.centerY + latY * waveDisp;
+
+      this.history.push({ x: this.x, y: this.y });
+      if (this.history.length > 10) {
+        this.history.shift();
+      }
+    }
+
+    collidesWith(enemy) {
+      const dist = Math.hypot(this.x - enemy.x, this.y - enemy.y);
+      return dist <= (this.size * 0.5 + enemy.radius);
+    }
+
+    draw(ctx, cam) {
+      if (!this.alive || !cam.isVisible(this.x, this.y, this.size + 14)) return;
+      const alphaFrac = Math.max(0, this.life / this.totalLife);
+
+      // Sinuous ribbon trail
+      if (this.history.length >= 2) {
+        ctx.save();
+        ctx.globalAlpha = alphaFrac;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < this.history.length; i++) {
+          const pt = this.history[i];
+          const px = cam.worldToScreenX(pt.x);
+          const py = cam.worldToScreenY(pt.y);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = '#f0ebff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Wind front gust head
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+      const hd = this.size;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(this.baseAngle);
+      ctx.globalAlpha = alphaFrac;
+
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.moveTo(hd * 0.5, 0);
+      ctx.lineTo(Math.cos(2.1) * hd * 0.35, Math.sin(2.1) * hd * 0.35);
+      ctx.lineTo(-hd * 0.2, 0);
+      ctx.lineTo(Math.cos(-2.1) * hd * 0.35, Math.sin(-2.1) * hd * 0.35);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+  }
+
   // --- Weapons Base & Roster ---
   class Weapon {
     constructor(name, desc, color) {
@@ -2691,6 +2989,195 @@
           particles.spawnSparks(player.x, player.y, '#ff5a1e', 4);
         }
         audio.play('blast_launch', 0.7);
+      }
+    }
+  }
+
+  // 10. QUANTUM BOOMERANG WEAPON (From User Sketch #1)
+  class QuantumBoomerangWeapon extends Weapon {
+    constructor() {
+      super('Quantum Boomerang', 'Launches piercing crescent boomerangs that loop out and return to the Quad Core.', '#78ff64');
+      this.cooldown = 2.4;
+      this.damage = 38.0;
+      this.count = 1;
+      this.maxDistance = 360;
+      this.flightTime = 1.35;
+      this.size = 22;
+    }
+
+    upgrade() {
+      this.level++;
+      if (this.level === 1) { this.count = 1; this.cooldown = 2.4; this.damage = 38.0; this.maxDistance = 360; this.flightTime = 1.35; this.size = 22; }
+      else if (this.level === 2) { this.count = 2; this.cooldown = 2.1; this.damage = 48.0; this.maxDistance = 400; this.size = 24; }
+      else if (this.level === 3) { this.count = 2; this.cooldown = 1.8; this.damage = 62.0; this.maxDistance = 450; this.flightTime = 1.45; this.size = 26; }
+      else if (this.level === 4) { this.count = 3; this.cooldown = 1.55; this.damage = 78.0; this.maxDistance = 490; this.size = 28; }
+      else if (this.level === 5) { this.count = 4; this.cooldown = 1.35; this.damage = 98.0; this.maxDistance = 540; this.flightTime = 1.55; this.size = 30; }
+    }
+
+    update(dt, player, enemies, projectiles, particles) {
+      if (this.level === 0) return;
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        this.timer = this.cooldown * player.cooldownMult;
+        let aimAngle = player.facingAngle;
+        if (enemies.length > 0) {
+          const nearest = enemies.reduce((prev, curr) =>
+            Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev
+          );
+          aimAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+        }
+
+        for (let i = 0; i < this.count; i++) {
+          let ang = aimAngle;
+          let curveDir = 1.0;
+          if (this.count === 1) {
+            ang = aimAngle;
+            curveDir = 1.0;
+          } else if (this.count === 2) {
+            ang = aimAngle;
+            curveDir = (i === 0) ? 1.0 : -1.0;
+          } else if (this.count === 3) {
+            ang = aimAngle + (i - 1) * 0.35;
+            curveDir = (i % 2 === 0) ? 1.0 : -1.0;
+          } else {
+            ang = aimAngle + (i * Math.PI / 2.0);
+            curveDir = (i % 2 === 0) ? 1.0 : -1.0;
+          }
+
+          projectiles.push(new QuantumBoomerangProjectile(
+            player.x, player.y,
+            ang,
+            this.damage * player.damageMult,
+            this.maxDistance,
+            this.flightTime,
+            curveDir,
+            this.size
+          ));
+        }
+
+        particles.spawnSparks(player.x, player.y, this.color, 4);
+        audio.play('boomerang_throw', 0.75);
+      }
+    }
+  }
+
+  // 11. SONIC LASH WEAPON (From User Sketch #2)
+  class SonicLashWeapon extends Weapon {
+    constructor() {
+      super('Sonic Lash', 'Projects expanding cascading crescents of concussive sonic sound waves.', '#ff3cb4');
+      this.cooldown = 1.8;
+      this.damage = 32.0;
+      this.waveCount = 3;
+      this.arcSpan = 1.3;
+      this.pierce = 5;
+      this.knockback = 320;
+      this.speed = 480;
+      this.dualWhip = false;
+    }
+
+    upgrade() {
+      this.level++;
+      if (this.level === 1) { this.cooldown = 1.8; this.damage = 32.0; this.waveCount = 3; this.arcSpan = 1.3; this.pierce = 5; this.knockback = 320; this.dualWhip = false; }
+      else if (this.level === 2) { this.cooldown = 1.6; this.damage = 44.0; this.pierce = 8; this.knockback = 360; }
+      else if (this.level === 3) { this.cooldown = 1.45; this.damage = 58.0; this.arcSpan = 1.65; this.pierce = 10; this.knockback = 420; }
+      else if (this.level === 4) { this.cooldown = 1.3; this.damage = 74.0; this.waveCount = 4; this.arcSpan = 1.85; this.pierce = 14; this.knockback = 480; }
+      else if (this.level === 5) { this.cooldown = 1.15; this.damage = 95.0; this.waveCount = 4; this.arcSpan = 2.1; this.pierce = 20; this.knockback = 560; this.dualWhip = true; }
+    }
+
+    update(dt, player, enemies, projectiles, particles, cam) {
+      if (this.level === 0) return;
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        this.timer = this.cooldown * player.cooldownMult;
+        let aimAngle = player.facingAngle;
+        if (enemies.length > 0) {
+          const nearest = enemies.reduce((prev, curr) =>
+            Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev
+          );
+          aimAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+        }
+
+        const directions = [aimAngle];
+        if (this.dualWhip) directions.push(aimAngle + Math.PI);
+
+        for (const dAng of directions) {
+          for (let wIdx = 0; wIdx < this.waveCount; wIdx++) {
+            const offsetDist = 18.0 + wIdx * 16.0;
+            const sx = player.x + Math.cos(dAng) * offsetDist;
+            const sy = player.y + Math.sin(dAng) * offsetDist;
+            const vx = Math.cos(dAng) * (this.speed + wIdx * 40.0);
+            const vy = Math.sin(dAng) * (this.speed + wIdx * 40.0);
+            projectiles.push(new SonicLashProjectile(
+              sx, sy, vx, vy,
+              dAng,
+              this.damage * player.damageMult,
+              this.arcSpan,
+              22.0 + wIdx * 8.0,
+              75.0 + wIdx * 18.0,
+              260.0,
+              this.pierce,
+              this.knockback
+            ));
+          }
+        }
+
+        if (cam) cam.shake(3.5, 0.15);
+        particles.spawnShockwave(player.x, player.y, 85.0, this.color);
+        audio.play('sonic_lash', 0.7);
+      }
+    }
+  }
+
+  // 12. QUANTUM WIND WEAPON (From User Sketch #3)
+  class QuantumWindWeapon extends Weapon {
+    constructor() {
+      super('Quantum Wind', 'Emanates 4 undulating quantum wind currents in all directions.', '#a082ff');
+      this.cooldown = 2.6;
+      this.damage = 34.0;
+      this.speed = 380;
+      this.frequency = 14.0;
+      this.amplitude = 26.0;
+      this.pierce = 4;
+      this.directionsCount = 4;
+      this.knockback = 280;
+      this.animTime = 0;
+    }
+
+    upgrade() {
+      this.level++;
+      if (this.level === 1) { this.cooldown = 2.6; this.damage = 34.0; this.speed = 380; this.frequency = 14.0; this.amplitude = 26.0; this.pierce = 4; this.directionsCount = 4; this.knockback = 280; }
+      else if (this.level === 2) { this.cooldown = 2.3; this.damage = 46.0; this.amplitude = 32.0; this.pierce = 6; this.knockback = 320; }
+      else if (this.level === 3) { this.cooldown = 2.0; this.damage = 60.0; this.speed = 430; this.pierce = 8; this.knockback = 360; }
+      else if (this.level === 4) { this.cooldown = 1.75; this.damage = 76.0; this.directionsCount = 8; this.pierce = 10; this.knockback = 420; }
+      else if (this.level === 5) { this.cooldown = 1.5; this.damage = 98.0; this.directionsCount = 8; this.speed = 490; this.amplitude = 38.0; this.pierce = 16; this.knockback = 490; }
+    }
+
+    update(dt, player, enemies, projectiles, particles) {
+      if (this.level === 0) return;
+      this.animTime += dt;
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        this.timer = this.cooldown * player.cooldownMult;
+        const baseOffset = this.animTime * 0.5;
+        const angleStep = (Math.PI * 2) / this.directionsCount;
+
+        for (let i = 0; i < this.directionsCount; i++) {
+          const ang = baseOffset + (i * angleStep);
+          projectiles.push(new QuantumWindProjectile(
+            player.x, player.y,
+            ang,
+            this.damage * player.damageMult,
+            this.speed,
+            this.frequency,
+            this.amplitude,
+            this.pierce,
+            16.0,
+            this.knockback
+          ));
+        }
+
+        particles.spawnShockwave(player.x, player.y, 110.0, this.color);
+        audio.play('quantum_wind', 0.75);
       }
     }
   }
@@ -3823,7 +4310,7 @@
       this.initials = [...this.lastUsedInitials];
       this.nameEntrySlot = 0;
 
-      // 9 Weapons
+      // 12 Weapons
       const wCube = new CubeShotWeapon();
       wCube.upgrade(); // Starts unlocked!
       const wArc = new ArcBladeWeapon();
@@ -3834,9 +4321,12 @@
       const wCascade = new CascadeBarrageWeapon();
       const wShockwave = new ShockwaveArcWeapon();
       const wBlast = new BlastCubeWeapon();
+      const wBoomerang = new QuantumBoomerangWeapon();
+      const wSonic = new SonicLashWeapon();
+      const wWind = new QuantumWindWeapon();
 
       this.pendingNewWeapon = null;
-      this.weapons = [wCube, wArc, wCluster, wTempest, wBeam, wSpiral, wCascade, wShockwave, wBlast];
+      this.weapons = [wCube, wArc, wCluster, wTempest, wBeam, wSpiral, wCascade, wShockwave, wBlast, wBoomerang, wSonic, wWind];
       this.player.weapons = this.weapons;
 
       audio.playGenomeMusic(this.genome.name);
@@ -4601,7 +5091,7 @@
         // Projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
           const p = this.projectiles[i];
-          p.update(dt);
+          p.update(dt, this.player);
 
           if (p instanceof BlastCubeProjectile) {
             if (p.readyToDetonate) {
@@ -5235,7 +5725,7 @@
         ctx.stroke();
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(cx - 5, cy - 5, 10, 10);
-      } else if (n.includes('blast core')) {
+      } else if (n.includes('blast core') || n.includes('blast cube')) {
         // Mega explosive orange cube with corner spikes
         ctx.fillStyle = '#ff5020';
         ctx.fillRect(cx - 12, cy - 12, 24, 24);
@@ -5248,6 +5738,89 @@
         ctx.fillRect(cx + 12, cy - 3, 6, 6);
         ctx.fillRect(cx - 3, cy - 18, 6, 6);
         ctx.fillRect(cx - 3, cy + 12, 6, 6);
+      } else if (n.includes('boomerang')) {
+        // Sketch 1: Quad core on left with curving looping trajectory and 2 crescents
+        const px = cx - size * 0.45;
+        ctx.fillStyle = '#00f0dc';
+        for (const [sx, sy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+          ctx.fillRect(px + sx - 1, cy + sy - 1, 3, 3);
+        }
+        // Parabolic loop line
+        ctx.strokeStyle = '#c8ffc8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.27, cy, size * 0.45, -Math.PI * 0.5, Math.PI * 0.5);
+        ctx.stroke();
+        // Two returning/outbound crescents
+        ctx.strokeStyle = color || '#78ff64';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.2, cy - size * 0.32, 6, Math.PI * 0.2, Math.PI * 1.4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.2, cy + size * 0.32, 6, Math.PI * 0.6, Math.PI * 1.8);
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.2, cy - size * 0.32, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.2, cy + size * 0.32, 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (n.includes('sonic lash') || n.includes('sonic') || n.includes('lash')) {
+        // Sketch 2: Quad core on left with 3 expanding concentric sound crescents
+        const px = cx - size * 0.45;
+        ctx.fillStyle = '#00f0dc';
+        for (const [sx, sy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+          ctx.fillRect(px + sx - 1, cy + sy - 1, 3, 3);
+        }
+        // 3 cascading sound wave ripples expanding outward
+        const radii = [size * 0.35, size * 0.55, size * 0.78];
+        radii.forEach((rVal, rIdx) => {
+          ctx.strokeStyle = color || '#ff3cb4';
+          ctx.lineWidth = (rIdx === 2) ? 4 : ((rIdx === 1) ? 3 : 2);
+          ctx.beginPath();
+          ctx.arc(px, cy, rVal, -Math.PI * 0.35, Math.PI * 0.35);
+          ctx.stroke();
+        });
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px, cy, size * 0.76, -Math.PI * 0.25, Math.PI * 0.25);
+        ctx.stroke();
+      } else if (n.includes('quantum wind') || n.includes('wind')) {
+        // Sketch 3: Quad core at center with 4 sinuous waving curves (North, South, East, West)
+        ctx.fillStyle = '#00f0dc';
+        for (const [sx, sy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) {
+          ctx.fillRect(cx + sx - 1, cy + sy - 1, 3, 3);
+        }
+        // 4 sinuous wavy squiggles extending in 4 directions
+        ctx.strokeStyle = color || '#a082ff';
+        ctx.lineWidth = 2;
+        // East & West
+        for (const sign of [1, -1]) {
+          ctx.beginPath();
+          for (let step = 0; step < 8; step++) {
+            const dist = (step + 1) * (size * 0.09);
+            const disp = Math.sin(step * 1.1) * 3.5;
+            const x = cx + sign * dist;
+            const y = cy + disp;
+            if (step === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          // North & South
+          ctx.beginPath();
+          for (let step = 0; step < 8; step++) {
+            const dist = (step + 1) * (size * 0.09);
+            const disp = Math.sin(step * 1.1) * 3.5;
+            const x = cx + disp;
+            const y = cy + sign * dist;
+            if (step === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
       } else if (n.includes('overclock reactor')) {
         // Red core reactor
         ctx.fillStyle = '#ff4646';
@@ -6446,7 +7019,7 @@
 
       // Animated Quad Logo in Center
       const cx = V_WIDTH / 2;
-      const cy = 245;
+      const cy = 205;
       const quadSize = 30;
       const gap = 8 + Math.sin(this.stateTime * 3) * 3;
       const offset = (quadSize + gap) / 2;
@@ -6463,10 +7036,41 @@
         ctx.fillRect(qx - 5, qy - 5, 10, 10);
       }
 
-      // Arsenal Preview
-      ctx.font = '13px Consolas';
+      // Arsenal Preview (All 12 Unique Blueprint Weapons)
+      ctx.font = 'bold 13px Consolas';
       ctx.fillStyle = '#8c96af';
-      ctx.fillText('ARSENAL: 9 QUANTUM WEAPONS // AUTO-TARGETING & FIRING', cx, 335);
+      ctx.textAlign = 'center';
+      ctx.fillText('ARSENAL: 12 QUANTUM WEAPONS // AUTO-TARGETING & FIRING', cx, 278);
+
+      const weaponsPreview = [
+        { name: 'Cube Shot', color: '#00f0dc' },
+        { name: 'Arc Blade', color: '#ffc832' },
+        { name: 'Cube Scatter', color: '#ff9632' },
+        { name: 'Orbital Arcs', color: '#00d2ff' },
+        { name: 'Plasma Bar', color: '#ff3090' },
+        { name: 'Spiral Vortex', color: '#46b4ff' },
+        { name: 'Cascade Barrage', color: '#ffa028' },
+        { name: 'Shockwave Arc', color: '#00f0dc' },
+        { name: 'Blast Cube', color: '#ff5020' },
+        { name: 'Boomerang', color: '#78ff64' },
+        { name: 'Sonic Lash', color: '#ff3cb4' },
+        { name: 'Quantum Wind', color: '#a082ff' },
+      ];
+
+      const spacing = 100;
+      const totalW = weaponsPreview.length * spacing;
+      const startWX = cx - totalW / 2 + spacing / 2;
+      const wy = 288;
+
+      for (let i = 0; i < weaponsPreview.length; i++) {
+        const w = weaponsPreview[i];
+        const ix = startWX + i * spacing;
+        this.drawWeaponIcon(ctx, w.name, ix, wy + 16, 20, w.color);
+        ctx.font = '12px Consolas';
+        ctx.fillStyle = w.color;
+        ctx.textAlign = 'center';
+        ctx.fillText(w.name, ix, wy + 38);
+      }
 
       // Difficulty Selector
       const dy = 370;

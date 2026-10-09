@@ -27,9 +27,11 @@ from weapons import (
     CrescentTempestWeapon, CuttingBeamWeapon,
     SpiralVortexWeapon, CascadeBarrageWeapon,
     ShockwaveArcWeapon, BlastCubeWeapon,
+    QuantumBoomerangWeapon, SonicLashWeapon, QuantumWindWeapon,
     CubeProjectile, ScatterCubeProjectile,
     SpiralCubeProjectile, CascadeCubeProjectile,
-    ShockwaveCubeProjectile, BlastCubeProjectile
+    ShockwaveCubeProjectile, BlastCubeProjectile,
+    QuantumBoomerangProjectile, SonicLashProjectile, QuantumWindProjectile
 )
 from spawner import WaveSpawner
 from enemies import OctagonBoss, BossProjectile
@@ -165,8 +167,15 @@ class Game:
         w_cascade = CascadeBarrageWeapon()
         w_shockwave = ShockwaveArcWeapon()
         w_blast = BlastCubeWeapon()
+        w_boomerang = QuantumBoomerangWeapon()
+        w_sonic = SonicLashWeapon()
+        w_wind = QuantumWindWeapon()
 
-        self.weapons = [w_cube, w_arc, w_scatter, w_tempest, w_beam, w_spiral, w_cascade, w_shockwave, w_blast]
+        self.weapons = [
+            w_cube, w_arc, w_scatter, w_tempest, w_beam,
+            w_spiral, w_cascade, w_shockwave, w_blast,
+            w_boomerang, w_sonic, w_wind
+        ]
         self.player.weapons = self.weapons
 
     def cycle_letter(self, slot_idx, direction):
@@ -846,7 +855,10 @@ class Game:
 
             # Update Projectiles
             for p in self.projectiles:
-                p.update(dt)
+                if isinstance(p, QuantumBoomerangProjectile):
+                    p.update(dt, self.player)
+                else:
+                    p.update(dt)
 
                 if isinstance(p, BlastCubeProjectile):
                     if p.ready_to_detonate:

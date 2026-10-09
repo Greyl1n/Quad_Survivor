@@ -34,6 +34,9 @@ COLOR_SPIRAL_CUBE = (255, 175, 40)       # New: Solar amber spiral cubes
 COLOR_CASCADE_BARRAGE = (70, 160, 255)   # New: Sapphire blue cascade cubes
 COLOR_SHOCKWAVE_ARC = (0, 255, 190)      # New Sketch: Electric mint expanding arc barrier
 COLOR_BLAST_CUBE = (255, 90, 30)         # New Sketch: Fiery orange explosive mortar cube
+COLOR_QUANTUM_BOOMERANG = (120, 255, 100) # Sketch 10: Radiant jade curving quantum boomerang
+COLOR_SONIC_LASH = (255, 60, 180)        # Sketch 11: Neon magenta forward cascading sonic crescents
+COLOR_QUANTUM_WIND = (160, 130, 255)     # Sketch 12: Ethereal lavender 4-way weaving wave gusts
 
 # Upgrade Rarity Tuning
 LEGENDARY_UPGRADE_CHANCE = 0.04          # Reduced from 0.18 to 0.04 (4% chance)

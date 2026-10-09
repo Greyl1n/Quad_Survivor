@@ -12,7 +12,7 @@
    - [Desktop Controls](#desktop-controls)
    - [Mobile Touch Controls](#mobile-touch-controls)
 4. [The Modular Quad Core & Character Physics](#-the-modular-quad-core--character-physics)
-5. [The 9 Blueprint Weapons & 4-Weapon Swap System](#-the-9-blueprint-weapons--4-weapon-swap-system)
+5. [The 12 Blueprint Weapons & 4-Weapon Swap System](#-the-12-blueprint-weapons--4-weapon-swap-system)
    - [Arsenal Overview](#arsenal-overview)
    - [The 4-Weapon Capacity Limit & Tactical Swap](#the-4-weapon-capacity-limit--tactical-swap)
 6. [Swarm Horde, Enemy Types & Boss Encounters](#-swarm-horde-enemy-types--boss-encounters)
@@ -107,7 +107,7 @@ The player character is not a static sprite, but a modular cluster of **four glo
 
 ---
 
-## ⚔️ The 9 Blueprint Weapons & 4-Weapon Swap System
+## ⚔️ The 12 Blueprint Weapons & 4-Weapon Swap System
 
 ### Arsenal Overview
 All weapons are derived from the hand-drawn blueprint sketches:
@@ -123,6 +123,9 @@ All weapons are derived from the hand-drawn blueprint sketches:
 | **7** | **Cascade Barrage** | Sapphire blue cubes | Sweeps rhythmic salvos of 5 to 9 cubes one-by-one across a directed arc. Upgrades into twin front and rear cascade barrages. |
 | **8** | **Shockwave Arc** | Mint green expanding arc | Synchronized crescent wave of 5 to 9 cubes launched with high piercing and heavy kinetic knockback (340-540 force). Upgrades to dual 360° nova crescents. |
 | **9** | **Blast Cube** | Fiery orange mortar | Heavy ballistic mortar launched into dense enemy clusters, detonating into an expansive radial explosion with cluster shrapnel bomblets. |
+| **10** | **Quantum Boomerang** | Lime green returning crescent | Aerodynamic curved crescent boomerangs looping outward along wide parabolic arcs and returning to the Quad Core, cleaving swarms on both outbound and inbound paths. |
+| **11** | **Sonic Lash** | Hot pink cascading crescents | Expanding concentric sound-wave ripples (3 cascading waves) surging ahead with deep piercing and heavy concussive acoustic knockback (320-560 force). |
+| **12** | **Quantum Wind** | Lavender sinuous ribbon | Undulating serpentine wind currents radiating outward in the 4 cardinal directions (North, South, East, West) with continuous slicing trails and tempest maelstrom upgrades. |
 
 ### The 4-Weapon Capacity Limit & Tactical Swap
 To foster strategic build diversity, the Quad Core can equip a maximum of **4 active weapons simultaneously**:
@@ -250,14 +253,14 @@ Pixel_All/
 │   ├── main.py             # Master state machine, event dispatcher, and game loop
 │   ├── constants.py        # Colors, screen dimensions, physics, and balance constants
 │   ├── player.py           # Quad character physics, quadrant spring recoil, stats
-│   ├── weapons.py          # 9 weapons, projectile hierarchy, collision & leveling
+│   ├── weapons.py          # 12 weapons, projectile hierarchy, collision & leveling
 │   ├── enemies.py          # Enemy archetypes, pursuit AI, soft flocking, boss, drops
 │   ├── spawner.py          # Wave spawning director, threat calculation, boss timers
 │   ├── portal.py           # Dimensional anomaly, vortex particles, radar beacon
 │   ├── obstacles.py        # Geometric obstacles, AABB/cylinder collision, ricochet
 │   ├── camera.py           # Smooth tracking camera, screenshake, 3:4 viewport
 │   ├── genome.py           # Level Genomes catalog and environmental mutators
-│   ├── audio.py            # Procedural C64 SID chiptune music and 18 retro SFX
+│   ├── audio.py            # Procedural C64 SID chiptune music and 21 retro SFX
 │   ├── ui.py               # HUD, upgrade cards, arcade bezels, scanlines, menus
 │   ├── scoreboard.py       # High score JSON persistence and sorting logic
 │   └── icon.png            # High-resolution desktop application icon
