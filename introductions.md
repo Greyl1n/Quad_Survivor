@@ -1,5 +1,6 @@
 # QUAD SURVIVOR: THE PIXEL SWARM
 ## Comprehensive Player Manual & Developer Architectural Guide
+### Current Version: `v0.7.2 [BETA]`
 
 ---
 

@@ -539,6 +539,7 @@ class BossProjectile:
         self.vy = float(vy)
         self.damage = float(damage)
         self.radius = float(radius)
+        self.size = float(radius * 2)
         self.color = color
         self.alive = True
         self.life = 7.0
@@ -690,7 +691,10 @@ class OctagonBoss(Enemy):
         angle = math.atan2(dy, dx) + spread
         vx = math.cos(angle) * speed
         vy = math.sin(angle) * speed
-        p = BossProjectile(self.x, self.y, vx, vy, damage=16.0, radius=11.0, color=(255, 60, 110))
+        spawn_d = self.radius + 15.0
+        sx = self.x + math.cos(angle) * spawn_d
+        sy = self.y + math.sin(angle) * spawn_d
+        p = BossProjectile(sx, sy, vx, vy, damage=16.0, radius=11.0, color=(255, 60, 110))
         boss_projectiles.append(p)
         audio.play("laser", 0.7)
 
@@ -720,7 +724,10 @@ class OctagonBoss(Enemy):
         a = self.rot
         vx = math.cos(a) * speed
         vy = math.sin(a) * speed
-        p = BossProjectile(self.x, self.y, vx, vy, damage=14.0, radius=10.0, color=(255, 40, 180))
+        spawn_d = self.radius + 20.0
+        sx = self.x + math.cos(a) * spawn_d
+        sy = self.y + math.sin(a) * spawn_d
+        p = BossProjectile(sx, sy, vx, vy, damage=14.0, radius=10.0, color=(255, 40, 180))
         boss_projectiles.append(p)
         audio.play("laser", 0.5)
 

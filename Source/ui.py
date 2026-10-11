@@ -15,7 +15,8 @@ from constants import (
     COLOR_SHOCKWAVE_ARC, COLOR_BLAST_CUBE,
     COLOR_QUANTUM_BOOMERANG, COLOR_SONIC_LASH, COLOR_QUANTUM_WIND,
     COLOR_HYPER_DROP,
-    DIFFICULTIES, DIFFICULTY_CONFIGS, DIFFICULTY_NORMAL
+    DIFFICULTIES, DIFFICULTY_CONFIGS, DIFFICULTY_NORMAL,
+    GAME_VERSION_STR
 )
 
 
@@ -1365,8 +1366,10 @@ class UIManager:
         # 1. Main Titles
         t_surf = self.font_title.render("QUAD SURVIVOR", True, (0, 240, 220))
         sub_surf = self.font_heading.render("THE PIXEL SWARM", True, (255, 215, 0))
-        surface.blit(t_surf, (cx - t_surf.get_width() // 2, 75))
-        surface.blit(sub_surf, (cx - sub_surf.get_width() // 2, 130))
+        ver_surf = self.font_small.render(f"BUILD {GAME_VERSION_STR}", True, (110, 160, 210))
+        surface.blit(t_surf, (cx - t_surf.get_width() // 2, 70))
+        surface.blit(sub_surf, (cx - sub_surf.get_width() // 2, 125))
+        surface.blit(ver_surf, (cx - ver_surf.get_width() // 2, 160))
 
         # 2. Animated Quad Logo
         cy = 205
@@ -1479,6 +1482,8 @@ class UIManager:
         mus_status = "C64 SID Music: ON" if getattr(audio_obj, "music_enabled", True) else "C64 SID Music: OFF"
         m_txt = self.font_small.render(f"🎵 {mus_status} (Toggle: [M])", True, (130, 145, 175))
         surface.blit(m_txt, (20, SCREEN_HEIGHT - 38))
+        v_bottom = self.font_small.render(f"QUAD SURVIVOR {GAME_VERSION_STR}", True, (80, 110, 145))
+        surface.blit(v_bottom, (cx - v_bottom.get_width() // 2, SCREEN_HEIGHT - 38))
 
     def draw_arcade_bezel(self, surface, player, game_time, genome, difficulty, state_time):
         """Draws an authentic, immersive retro-arcade machine cabinet flank bezel when in 3:4 aspect ratio.
@@ -1515,7 +1520,7 @@ class UIManager:
         glow_pulse = 0.8 + 0.2 * math.sin(state_time * 3.0)
         e_surf = self.font_title.render("QUAD SURVIVOR", True, (int(0 * glow_pulse), int(240 * glow_pulse), int(220 * glow_pulse)))
         surface.blit(e_surf, (185 - e_surf.get_width() // 2, 85))
-        sub_e = self.font_small.render("ARCADE SPEC // MODEL C64-TATE", True, (130, 150, 180))
+        sub_e = self.font_small.render(f"ARCADE SPEC // MODEL C64-TATE // {GAME_VERSION_STR}", True, (130, 150, 180))
         surface.blit(sub_e, (185 - sub_e.get_width() // 2, 115))
 
         # Instructions Metal Plate

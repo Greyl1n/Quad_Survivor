@@ -17,6 +17,9 @@
   const WORLD_WIDTH = 3600;
   const WORLD_HEIGHT = 3600;
 
+  const GAME_VERSION = '0.7.2';
+  const GAME_VERSION_STR = 'v0.7.2 [BETA]';
+
   let scale = 1.0;
   let offsetX = 0;
   let offsetY = 0;
@@ -1384,7 +1387,7 @@
     }
 
     checkProjectileCollision(p) {
-      const r = (p.size || 12) / 2;
+      const r = (p.radius !== undefined ? p.radius : (p.size || 12) / 2);
 
       if (this.isBossArena) {
         for (const n of this.bossNormals) {
@@ -3481,6 +3484,7 @@
       this.vy = vy;
       this.damage = damage;
       this.radius = radius;
+      this.size = radius * 2;
       this.color = color;
       this.alive = true;
       this.life = 7.0;
@@ -3627,7 +3631,10 @@
       const a = Math.atan2(dy, dx) + spread;
       const vx = Math.cos(a) * spd;
       const vy = Math.sin(a) * spd;
-      bossProjectiles.push(new BossProjectile(this.x, this.y, vx, vy, 16, 11, '#ff3c6e'));
+      const spawnD = this.radius + 15;
+      const sx = this.x + Math.cos(a) * spawnD;
+      const sy = this.y + Math.sin(a) * spawnD;
+      bossProjectiles.push(new BossProjectile(sx, sy, vx, vy, 16, 11, '#ff3c6e'));
       audio.play('laser', 0.7);
     }
 
@@ -3655,7 +3662,10 @@
       const a = this.rot;
       const vx = Math.cos(a) * spd;
       const vy = Math.sin(a) * spd;
-      bossProjectiles.push(new BossProjectile(this.x, this.y, vx, vy, 14, 10, '#ff28b4'));
+      const spawnD = this.radius + 20;
+      const sx = this.x + Math.cos(a) * spawnD;
+      const sy = this.y + Math.sin(a) * spawnD;
+      bossProjectiles.push(new BossProjectile(sx, sy, vx, vy, 14, 10, '#ff28b4'));
       audio.play('laser', 0.5);
     }
 
@@ -5191,7 +5201,7 @@
 
           // Obstacle & Pillar Collision
           const hitObs = this.obstacles.checkProjectileCollision(bp);
-          if (hitObs) {
+          if (hitObs && hitObs.hit) {
             this.particles.spawnSparks(bp.x, bp.y, bp.color, 4);
             this.bossProjectiles.splice(i, 1);
             continue;
@@ -6391,7 +6401,7 @@
       ctx.fillText('QUAD SURVIVOR', 185, 95);
       ctx.font = '12px Consolas';
       ctx.fillStyle = '#8296b4';
-      ctx.fillText('ARCADE SPEC // MODEL C64-TATE', 185, 116);
+      ctx.fillText('ARCADE SPEC // MODEL C64-TATE // ' + GAME_VERSION_STR, 185, 116);
 
       // Instructions Plate
       ctx.fillStyle = '#121721';
@@ -7036,7 +7046,11 @@
 
       ctx.font = 'bold 22px Consolas';
       ctx.fillStyle = '#ffd700';
-      ctx.fillText('THE PIXEL SWARM', V_WIDTH / 2, 150);
+      ctx.fillText('THE PIXEL SWARM', V_WIDTH / 2, 145);
+
+      ctx.font = 'bold 12px Consolas';
+      ctx.fillStyle = '#6496c8';
+      ctx.fillText('BUILD ' + GAME_VERSION_STR, V_WIDTH / 2, 168);
 
       // Animated Quad Logo in Center
       const cx = V_WIDTH / 2;
@@ -7190,6 +7204,10 @@
       ctx.fillStyle = '#8c96af';
       ctx.textAlign = 'left';
       ctx.fillText(`🎵 ${musStatus} (Toggle: [M])`, 20, V_HEIGHT - 28);
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#506e91';
+      ctx.fillText('QUAD SURVIVOR ' + GAME_VERSION_STR, V_WIDTH / 2, V_HEIGHT - 28);
     }
 
     wrapText(ctx, text, x, y, maxWidth, lineHeight, align = 'center') {

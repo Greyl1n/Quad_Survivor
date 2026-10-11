@@ -9,7 +9,7 @@ import random
 import pygame
 
 from constants import (
-    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE,
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE, GAME_VERSION_STR,
     WORLD_WIDTH, WORLD_HEIGHT, COLOR_HYPER_DROP,
     STATE_TITLE, STATE_PLAYING, STATE_LEVEL_UP, STATE_WEAPON_SWAP, STATE_GAME_OVER,
     STATE_SCOREBOARD, STATE_PAUSED, STATE_NAME_ENTRY,
@@ -54,7 +54,7 @@ class Game:
     def __init__(self):
         """Initializes the Pygame context, display window, audio, and all core subsystems."""
         pygame.init()
-        pygame.display.set_caption(TITLE)
+        pygame.display.set_caption(f"{TITLE} - {GAME_VERSION_STR}")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.state = STATE_TITLE

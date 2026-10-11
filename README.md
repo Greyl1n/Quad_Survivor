@@ -367,3 +367,23 @@ Install `QuadSurvivor.apk` onto any Android phone, tablet, or emulator running A
 ## 🔊 Zero External Dependencies
 - All 18 retro sound effects (lasers, slashes, scatter bursts, laser beams, crystal gem chimes, level up fanfares, expanding shockwaves, explosive mortar detonations) AND the 16-bar Commodore 64 SID chiptune background soundtrack are procedurally synthesized in real-time in memory via NumPy + Pygame Mixer on desktop, and Web Audio API oscillators/buffers on Android. Zero external audio files required!
 
+---
+
+## 🏷️ Versioning Scheme & Changelog
+
+Quad Survivor uses semantic versioning in the format `0.MAJOR.PATCH` during its beta cycle:
+- `0`: Ongoing Beta development stage.
+- `MAJOR` (Middle digit): Number of major feature milestones completed:
+  1. Modular Quad Core player kinematics, 4-quadrant firing, and horde swarm spawner (`0.1.0`)
+  2. Real-time procedural Commodore 64 SID chiptune music engine & 3:4 TATE CRT arcade cabinet mode (`0.2.0`)
+  3. 6 Procedural Level Genomes and dimensional warping portals (`0.3.0`)
+  4. Geometric obstacle system (Monoliths, Walls, Bastions) with ricochet physics (`0.4.0`)
+  5. Dedicated Octagon Overlord Boss Encounter, 8-sided containment arena, and 4 energy pillars (`0.5.0`)
+  6. Expanded 12 blueprint weapon arsenal & 4-weapon tactical swap modal (`0.6.0`)
+  7. Boss loot progression (Overclock Matrix / Hyper Core) and reward rebalancing (`0.7.0`)
+- `PATCH` (Last digit): Refinement iterations and bug fixes:
+  - **.1**: Supernova Bomb audio smoothing (eliminated speaker distortion) & drop rate rarity tuning.
+  - **.2**: Restored Octagon Boss projectile attacks (fixed obstacle collision truthiness bug in `game.js`), added projectile spawn offsets, and integrated unified version numbering across all platforms.
+
+### Current Version: `v0.7.2 [BETA]`
+

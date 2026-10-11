@@ -449,7 +449,7 @@ class ObstacleManager:
         Tests if a projectile strikes any solid obstacle in the arena or the octagon boundary.
         Returns (hit_boolean, surface_normal_x, surface_normal_y) for ricochet reflection.
         """
-        r = getattr(projectile, "size", 10.0) / 2
+        r = getattr(projectile, "radius", getattr(projectile, "size", 10.0) / 2)
         if self.is_boss_arena and self.boss_arena:
             hit, nx, ny = self.boss_arena.check_projectile_collision(projectile.x, projectile.y, r)
             if hit:
