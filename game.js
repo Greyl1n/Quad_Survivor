@@ -17,8 +17,8 @@
   const WORLD_WIDTH = 3600;
   const WORLD_HEIGHT = 3600;
 
-  const GAME_VERSION = '0.7.2';
-  const GAME_VERSION_STR = 'v0.7.2 [BETA]';
+  const GAME_VERSION = '0.8.0';
+  const GAME_VERSION_STR = 'v0.8.0 [BETA]';
 
   let scale = 1.0;
   let offsetX = 0;
@@ -3422,11 +3422,71 @@
       this.isBoss = true;
       this.rot = 0;
       this.pulse = 0;
+      this.shootTimer = 2.5;
+      this.attackCounter = 0;
     }
-    update(dt, player, obstacles) {
+
+    updateBoss(dt, player, obstacles, bossProjectiles, spawner, particles) {
       super.update(dt, player, obstacles);
       this.rot += 1.2 * dt;
       this.pulse += 3.0 * dt;
+
+      // Periodic intimidating projectile attacks (every ~2.8 - 3.6s)
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0) {
+        this.shootTimer = 2.8 + Math.random() * 0.8;
+        this.attackCounter++;
+        if (bossProjectiles) {
+          if (this.attackCounter % 2 === 1) {
+            this.fireTriBlast(player, bossProjectiles, particles);
+          } else {
+            this.fireSpikeNova(bossProjectiles, particles);
+          }
+        }
+      }
+    }
+
+    update(dt, player, obstacles) {
+      this.updateBoss(dt, player, obstacles, null, null, null);
+    }
+
+    fireTriBlast(player, bossProjectiles, particles) {
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const baseAngle = Math.atan2(dy, dx);
+      const spd = 290;
+      const spreads = [-0.22, 0, 0.22];
+      const spawnD = this.radius + 16;
+      for (const spread of spreads) {
+        const a = baseAngle + spread;
+        const vx = Math.cos(a) * spd;
+        const vy = Math.sin(a) * spd;
+        const sx = this.x + Math.cos(a) * spawnD;
+        const sy = this.y + Math.sin(a) * spawnD;
+        bossProjectiles.push(new BossProjectile(sx, sy, vx, vy, 20, 12, '#ff1e78'));
+      }
+      if (particles) {
+        particles.spawnShockwave(this.x, this.y, 60, '#ff288c');
+      }
+      audio.play('laser', 0.75);
+    }
+
+    fireSpikeNova(bossProjectiles, particles) {
+      const spd = 240;
+      const spikes = 8;
+      const spawnD = this.radius + 18;
+      for (let i = 0; i < spikes; i++) {
+        const a = this.rot + (i * Math.PI * 2) / spikes;
+        const vx = Math.cos(a) * spd;
+        const vy = Math.sin(a) * spd;
+        const sx = this.x + Math.cos(a) * spawnD;
+        const sy = this.y + Math.sin(a) * spawnD;
+        bossProjectiles.push(new BossProjectile(sx, sy, vx, vy, 18, 10, '#ff3ca0'));
+      }
+      if (particles) {
+        particles.spawnShockwave(this.x, this.y, 90, '#ff1e82');
+      }
+      audio.play('arc_blade', 0.85);
     }
     draw(ctx, cam) {
       if (!cam.isVisible(this.x, this.y, this.radius + 15)) return;
@@ -4557,6 +4617,7 @@
           if (e.code === 'Digit1' && this.levelUpOptions[0]) this.applyUpgrade(this.levelUpOptions[0]);
           else if (e.code === 'Digit2' && this.levelUpOptions[1]) this.applyUpgrade(this.levelUpOptions[1]);
           else if (e.code === 'Digit3' && this.levelUpOptions[2]) this.applyUpgrade(this.levelUpOptions[2]);
+          else if (e.code === 'Escape' || e.code === 'Digit0' || e.code === 'KeyD') this.declineUpgrade();
         } else if (this.state === 'weapon_swap') {
           const equipped = this.weapons.filter(w => w.unlocked && w.level > 0);
           if (e.code === 'Digit1' && equipped[0]) this.applyWeaponSwap(equipped[0]);
@@ -4788,6 +4849,14 @@
         return;
       }
 
+      if (this.levelUpDeclineRect) {
+        const r = this.levelUpDeclineRect;
+        if (vx >= r.x && vx <= r.x + r.w && vy >= r.y && vy <= r.y + r.h) {
+          this.declineUpgrade();
+          return;
+        }
+      }
+
       if (this.aspectMode === '3:4') {
         const cardW = 460;
         const cardH = 136;
@@ -4821,8 +4890,24 @@
     }
 
 
+    declineUpgrade() {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + 30);
+      this.player.xp += 50;
+      this.particles.spawnText(this.player.x, this.player.y - 45, 'UPGRADE DECLINED (+30 HP / +50 XP)', '#50ff78', 2.5, true);
+      this.particles.spawnShockwave(this.player.x, this.player.y, 140, '#50ff78');
+      audio.play('gem', 1.0);
+
+      if (this.player.pendingLevelUps > 0) {
+        this.player.pendingLevelUps--;
+        this.levelUpOptions = this.rollUpgradeOptions();
+        this.state = 'levelup';
+      } else {
+        this.state = 'playing';
+      }
+    }
+
     rollUpgradeOptions() {
-      const pool = [];
+      const weaponPool = [];
       const equipped = this.weapons.filter(w => w.unlocked && w.level > 0);
       const slotsFull = (equipped.length >= 4);
 
@@ -4841,7 +4926,7 @@
             descText = `Upgrade ${w.name} to Level ${w.level + 1}`;
           }
 
-          pool.push({
+          weaponPool.push({
             type: 'weapon',
             target: w,
             title: w.name,
@@ -4853,15 +4938,17 @@
         }
       }
 
+      const statPool = [];
       const statDefs = [
         { id: 'stat_damage', title: 'Overclock Reactor', desc: '+18% Damage multiplier to all active weapons.', tag: 'AUGMENT', color: '#ff5a5a' },
         { id: 'stat_speed', title: 'Quantum Thrusters', desc: '+15% Movement speed for superior horde kiting.', tag: 'AUGMENT', color: '#50dcff' },
         { id: 'stat_hp', title: 'Shield Hardening', desc: '+30 Max HP and instantly restores 50 HP.', tag: 'AUGMENT', color: '#50ff78' },
         { id: 'stat_magnet', title: 'Graviton Field', desc: '+35% XP Gem and Item collection magnet radius.', tag: 'AUGMENT', color: '#c878ff' },
-        { id: 'stat_cooldown', title: 'Rapid Cycle', desc: '-12% Cooldown reduction on all weapons.', tag: 'AUGMENT', color: '#ffe040' }
+        { id: 'stat_cooldown', title: 'Rapid Cycle', desc: '-12% Cooldown reduction on all weapons.', tag: 'AUGMENT', color: '#ffe040' },
+        { id: 'stat_heal', title: 'Nanite Repair', desc: 'Instantly repairs 60 HP and restores shields.', tag: 'REPAIR', color: '#3cf0a0' }
       ];
       for (const s of statDefs) {
-        pool.push({
+        statPool.push({
           type: 'stat',
           target: s.id,
           title: s.title,
@@ -4871,9 +4958,16 @@
         });
       }
 
-      // Shuffle
-      pool.sort(() => Math.random() - 0.5);
-      const selected = pool.slice(0, 3);
+      weaponPool.sort(() => Math.random() - 0.5);
+      statPool.sort(() => Math.random() - 0.5);
+
+      // GUARANTEE: At least 1 card is ALWAYS a Stat Augment (non-weapon upgrade)!
+      const selected = [];
+      if (statPool.length > 0) selected.push(statPool.pop());
+      while (selected.length < 3 && weaponPool.length > 0) selected.push(weaponPool.pop());
+      while (selected.length < 3 && statPool.length > 0) selected.push(statPool.pop());
+
+      selected.sort(() => Math.random() - 0.5);
 
       // 4% Chance for Extra Rare Legendary Hyper Matrix
       if (Math.random() < 0.04) {
@@ -4918,6 +5012,10 @@
         else if (opt.target === 'stat_hp') {
           this.player.maxHp += 30;
           this.player.hp = Math.min(this.player.maxHp, this.player.hp + 50);
+        } else if (opt.target === 'stat_heal') {
+          this.player.hp = Math.min(this.player.maxHp, this.player.hp + 60);
+          this.particles.spawnText(this.player.x, this.player.y - 40, '+60 HP REPAIRED!', '#3cf0a0', 2.0, true);
+          audio.play('health_pickup', 1.0);
         } else if (opt.target === 'stat_magnet') this.player.pickupRadius += 45;
         else if (opt.target === 'stat_cooldown') this.player.baseCooldownMult = Math.max(0.4, this.player.baseCooldownMult - 0.12);
         this.player.applyGenome(this.genome);
@@ -5955,6 +6053,7 @@
     }
 
     drawLevelUpModal() {
+      this.levelUpDeclineRect = null;
       const isArcade = (this.aspectMode === '3:4');
       if (isArcade) {
         ctx.fillStyle = 'rgba(10, 14, 24, 0.88)';
@@ -6040,6 +6139,23 @@
           ctx.textAlign = 'right';
           ctx.fillText('TAP TO INSTALL ▶', startX + cardW - 16, cy + cardH - 12);
         }
+
+        // Decline / Skip button for 3:4 mode
+        const decW = 460;
+        const decH = 42;
+        const decY = startY + this.levelUpOptions.length * (cardH + cardGap) + 6;
+        this.levelUpDeclineRect = { x: 640 - decW / 2, y: decY, w: decW, h: decH };
+        ctx.fillStyle = '#221418';
+        ctx.strokeStyle = '#ff465a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(this.levelUpDeclineRect.x, decY, decW, decH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = 'bold 13px Consolas';
+        ctx.fillStyle = '#ff96aa';
+        ctx.textAlign = 'center';
+        ctx.fillText('✖ DECLINE / SKIP (+30 HP / +50 XP) [ESC] / [0]', 640, decY + 26);
       } else {
         // 16:9 Horizontal cards layout (scaled to 320x360 for clean margins)
         const cardW = 320;
@@ -6102,6 +6218,23 @@
           ctx.fillStyle = isLeg ? '#fff050' : '#00f0dc';
           ctx.fillText('TAP TO INSTALL', cx + cardW / 2, cardY + cardH - 24);
         }
+
+        // Decline / Skip button for 16:9 mode
+        const decW = 520;
+        const decH = 44;
+        const decY = cardY + cardH + 20;
+        this.levelUpDeclineRect = { x: (V_WIDTH - decW) / 2, y: decY, w: decW, h: decH };
+        ctx.fillStyle = '#221418';
+        ctx.strokeStyle = '#ff465a';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(this.levelUpDeclineRect.x, decY, decW, decH, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = 'bold 15px Consolas';
+        ctx.fillStyle = '#ff96aa';
+        ctx.textAlign = 'center';
+        ctx.fillText('✖ DECLINE / SKIP UPGRADE (+30 HP / +50 XP) [ESC] / [0] / [D]', V_WIDTH / 2, decY + 28);
       }
     }
 

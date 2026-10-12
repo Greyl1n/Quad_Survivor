@@ -381,9 +381,21 @@ Quad Survivor uses semantic versioning in the format `0.MAJOR.PATCH` during its 
   5. Dedicated Octagon Overlord Boss Encounter, 8-sided containment arena, and 4 energy pillars (`0.5.0`)
   6. Expanded 12 blueprint weapon arsenal & 4-weapon tactical swap modal (`0.6.0`)
   7. Boss loot progression (Overclock Matrix / Hyper Core) and reward rebalancing (`0.7.0`)
+  8. Upgrade Choice Flexibility (Decline/Skip Option, Guaranteed Stat Augments) & Colossus Boss Projectile Attacks (`0.8.0`)
 - `PATCH` (Last digit): Refinement iterations and bug fixes:
   - **.1**: Supernova Bomb audio smoothing (eliminated speaker distortion) & drop rate rarity tuning.
   - **.2**: Restored Octagon Boss projectile attacks (fixed obstacle collision truthiness bug in `game.js`), added projectile spawn offsets, and integrated unified version numbering across all platforms.
 
-### Current Version: `v0.7.2 [BETA]`
+### Current Version: `v0.8.0 [BETA]`
+
+#### What's New in `v0.8.0`:
+- **Upgrade Flexibility & Decline Option**:
+  - Added an interactive **`[✖ DECLINE / SKIP UPGRADE]`** option on the Level-Up screen (`[ESC]`, `[0]`, `[D]`, or click/tap).
+  - Declining grants an instant **+30 HP heal and +50 bonus XP** consolation reward!
+  - **Guaranteed Non-Weapon Upgrade**: Each level-up roll is now guaranteed to include at least 1 Stat Augment, so players who already like their 4 equipped weapons are never forced into unwanted weapon swaps.
+  - Added new **`Nanite Repair`** utility card (+60 HP instant repair).
+- **Intimidating Colossus Boss Projectile Attacks**:
+  - The 3-minute Colossus Boss now fires 2 intimidating projectile attack routines:
+    1. **Aimed Tri-Blast**: 3 heavy magenta energy orbs launched in a spread toward the player.
+    2. **Spike Nova**: 8 radial energy spikes launched outward from its rotating perimeter spikes.
 

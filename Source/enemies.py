@@ -484,11 +484,66 @@ class ColossusBoss(Enemy):
         self.is_boss = True
         self.rot = 0.0
         self.pulse = 0.0
+        self.shoot_timer = 2.5
+        self.attack_counter = 0
 
-    def update(self, dt, player, obstacles=None):
+    def update_boss(self, dt, player, obstacles=None, boss_projectiles=None, spawner=None, particle_manager=None):
         super().update(dt, player, obstacles)
         self.rot += 1.2 * dt
         self.pulse += 3.0 * dt
+
+        # Periodic intimidating projectile attacks (every ~2.8 - 3.6s)
+        self.shoot_timer -= dt
+        if self.shoot_timer <= 0:
+            self.shoot_timer = random.uniform(2.8, 3.6)
+            self.attack_counter += 1
+            if boss_projectiles is not None:
+                if self.attack_counter % 2 == 1:
+                    # Attack 1: Colossus Tri-Blast (3 heavy aimed spread orbs toward player)
+                    self._fire_tri_blast(player, boss_projectiles, particle_manager)
+                else:
+                    # Attack 2: Colossus Spike Nova (8 radial energy spikes launched outward)
+                    self._fire_spike_nova(boss_projectiles, particle_manager)
+
+    def update(self, dt, player, obstacles=None):
+        self.update_boss(dt, player, obstacles)
+
+    def _fire_tri_blast(self, player, boss_projectiles, particle_manager):
+        """Fires 3 heavy magenta energy orbs in an aimed spread towards the player."""
+        dx = player.x - self.x
+        dy = player.y - self.y
+        base_angle = math.atan2(dy, dx)
+        speed = 290.0
+        spreads = [-0.22, 0.0, 0.22]
+        spawn_d = self.radius + 16.0
+        for spread in spreads:
+            angle = base_angle + spread
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            sx = self.x + math.cos(angle) * spawn_d
+            sy = self.y + math.sin(angle) * spawn_d
+            p = BossProjectile(sx, sy, vx, vy, damage=20.0, radius=12.0, color=(255, 30, 120))
+            boss_projectiles.append(p)
+        if particle_manager:
+            particle_manager.spawn_shockwave(self.x, self.y, max_radius=60.0, color=(255, 40, 140))
+        audio.play("laser", 0.75)
+
+    def _fire_spike_nova(self, boss_projectiles, particle_manager):
+        """Fires 8 radial energy spikes launched outward from Colossus's rotating spikes."""
+        speed = 240.0
+        spikes = 8
+        for i in range(spikes):
+            angle = self.rot + (i * math.pi * 2.0 / spikes)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            spawn_d = self.radius + 18.0
+            sx = self.x + math.cos(angle) * spawn_d
+            sy = self.y + math.sin(angle) * spawn_d
+            p = BossProjectile(sx, sy, vx, vy, damage=18.0, radius=10.0, color=(255, 60, 160))
+            boss_projectiles.append(p)
+        if particle_manager:
+            particle_manager.spawn_shockwave(self.x, self.y, max_radius=90.0, color=(255, 30, 130))
+        audio.play("arc_blade", 0.85)
 
     def draw(self, surface, camera):
         if not camera.is_visible(self.x, self.y, self.radius + 15):

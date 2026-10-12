@@ -501,6 +501,7 @@ class UIManager:
         surface.blit(sub_surf, (cx - sub_surf.get_width() // 2, 120 if is_arcade else 145))
 
         self.hovered_card_idx = -1
+        self.decline_btn_rect = None
 
         if is_arcade:
             # 3:4 Retro Arcade Vertical Stack Layout (fits inside 540px monitor X=370..910)
@@ -562,6 +563,17 @@ class UIManager:
                 hint_surf = self.font_small.render(hint_txt, True, (0, 255, 220) if is_hovered else (120, 140, 170))
                 surface.blit(hint_surf, (tx, card_y + card_h - 24))
 
+            # Decline button for 3:4 mode
+            dec_w = 460
+            dec_h = 42
+            dec_y = start_y + len(options) * (card_h + card_gap) + 6
+            self.decline_btn_rect = pygame.Rect(cx - dec_w // 2, dec_y, dec_w, dec_h)
+            dec_hover = self.decline_btn_rect.collidepoint(mouse_pos)
+            pygame.draw.rect(surface, (36, 20, 26) if dec_hover else (22, 14, 18), self.decline_btn_rect, border_radius=8)
+            pygame.draw.rect(surface, (255, 70, 90) if dec_hover else (150, 45, 60), self.decline_btn_rect, 2 if dec_hover else 1, border_radius=8)
+            dec_txt = self.font_small.render("✖ DECLINE / SKIP (+30 HP / +50 XP) [ESC] / [0]", True, (255, 230, 240) if dec_hover else (220, 140, 160))
+            surface.blit(dec_txt, (self.decline_btn_rect.centerx - dec_txt.get_width() // 2, self.decline_btn_rect.centery - dec_txt.get_height() // 2))
+
         else:
             # 16:9 Standard Horizontal 3-Card Lineup
             card_w = 320
@@ -621,6 +633,17 @@ class UIManager:
                 if is_hovered:
                     hint_surf = self.font_small.render("CLICK TO INSTALL", True, COLOR_UI_ACCENT)
                     surface.blit(hint_surf, (cx_card + card_w // 2 - hint_surf.get_width() // 2, card_y + card_h - 32))
+
+            # Decline button for 16:9 mode
+            dec_w = 520
+            dec_h = 44
+            dec_y = card_y + card_h + 20
+            self.decline_btn_rect = pygame.Rect(cx - dec_w // 2, dec_y, dec_w, dec_h)
+            dec_hover = self.decline_btn_rect.collidepoint(mouse_pos)
+            pygame.draw.rect(surface, (36, 20, 26) if dec_hover else (22, 14, 18), self.decline_btn_rect, border_radius=8)
+            pygame.draw.rect(surface, (255, 70, 90) if dec_hover else (150, 45, 60), self.decline_btn_rect, 2 if dec_hover else 1, border_radius=8)
+            dec_txt = self.font_body.render("✖ DECLINE / SKIP UPGRADE (+30 HP / +50 XP) [ESC] / [0] / [D]", True, (255, 230, 240) if dec_hover else (220, 140, 160))
+            surface.blit(dec_txt, (self.decline_btn_rect.centerx - dec_txt.get_width() // 2, self.decline_btn_rect.centery - dec_txt.get_height() // 2))
 
     def draw_weapon_swap_modal(self, surface, new_weapon, equipped_weapons, mouse_pos, aspect_mode="16:9"):
         """Renders the Weapon Swap replacement screen when the 4 equipped weapon slots are full."""

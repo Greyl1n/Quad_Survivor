@@ -349,7 +349,7 @@ class Game:
         - Stat augments (Overclock Reactor, Quantum Thrusters, Shield Hardening, Graviton Field, Rapid Cycle)
         - 4% chance to roll the ultra-rare [LEGENDARY] Hyper Matrix (+25% damage to all active weapons)
         """
-        pool = []
+        weapon_pool = []
 
         equipped = [w for w in self.weapons if w.unlocked and w.level > 0]
         slots_full = len(equipped) >= MAX_EQUIPPED_WEAPONS
@@ -372,15 +372,17 @@ class Game:
                     level_text=lvl_str,
                     icon_color=w.color
                 )
-                pool.append(opt)
+                weapon_pool.append(opt)
 
         # 2. Stat Augment options
+        stat_pool = []
         stat_defs = [
             ("Overclock Reactor", "stat_damage", "+18% Damage multiplier to all active weapons.", "AUGMENT", (255, 90, 90)),
             ("Quantum Thrusters", "stat_speed", "+15% Movement speed for superior horde kiting.", "AUGMENT", (80, 220, 255)),
             ("Shield Hardening", "stat_hp", "+30 Max HP and instantly restores 50 HP.", "AUGMENT", (80, 255, 120)),
             ("Graviton Field", "stat_magnet", "+35% XP Gem and Item collection magnet radius.", "AUGMENT", (200, 120, 255)),
             ("Rapid Cycle", "stat_cooldown", "-12% Cooldown reduction on all weapons.", "AUGMENT", (255, 220, 60)),
+            ("Nanite Repair", "stat_heal", "Instantly repairs 60 HP and restores shields.", "REPAIR", (60, 240, 160)),
         ]
         for title, s_id, desc, tag, col in stat_defs:
             opt = UpgradeOption(
@@ -391,11 +393,23 @@ class Game:
                 level_text=tag,
                 icon_color=col
             )
-            pool.append(opt)
+            stat_pool.append(opt)
 
-        # Pick 3 random distinct options
-        random.shuffle(pool)
-        selected = pool[:3]
+        random.shuffle(weapon_pool)
+        random.shuffle(stat_pool)
+
+        # GUARANTEE: At least 1 card is ALWAYS a Stat Augment (non-weapon upgrade)!
+        selected = []
+        if stat_pool:
+            selected.append(stat_pool.pop())
+
+        # Fill remaining 2 slots from weapon_pool first, then remaining stat_pool
+        while len(selected) < 3 and weapon_pool:
+            selected.append(weapon_pool.pop())
+        while len(selected) < 3 and stat_pool:
+            selected.append(stat_pool.pop())
+
+        random.shuffle(selected)
 
         # 3. Extra Rare Legendary Upgrade Drop (+25% Damage to all weapons)
         if random.random() < LEGENDARY_UPGRADE_CHANCE:
@@ -414,6 +428,24 @@ class Game:
                 selected.append(legendary_opt)
 
         return selected
+
+    def decline_upgrade(self):
+        """
+        Declines/skips the offered level-up cards without swapping or taking unneeded weapons.
+        Grants a consolation reward (+30 HP restoration and +50 bonus XP).
+        """
+        self.player.hp = min(self.player.max_hp, self.player.hp + 30.0)
+        self.player.xp += 50
+        self.particles.spawn_text(self.player.x, self.player.y - 45, "UPGRADE DECLINED (+30 HP / +50 XP)", (80, 255, 160), duration=2.5, is_crit=True)
+        self.particles.spawn_shockwave(self.player.x, self.player.y, max_radius=140.0, color=(80, 255, 160))
+        audio.play("gem", 1.0)
+
+        if self.player.pending_level_ups > 0:
+            self.player.pending_level_ups -= 1
+            self.level_up_options = self._roll_upgrade_options()
+            self.state = STATE_LEVEL_UP
+        else:
+            self.state = STATE_PLAYING
 
     def apply_upgrade(self, option):
         """
@@ -444,6 +476,10 @@ class Game:
             elif s_id == "stat_hp":
                 self.player.max_hp += 30.0
                 self.player.hp = min(self.player.max_hp, self.player.hp + 50.0)
+            elif s_id == "stat_heal":
+                self.player.hp = min(self.player.max_hp, self.player.hp + 60.0)
+                self.particles.spawn_text(self.player.x, self.player.y - 40, "+60 HP REPAIRED!", (60, 240, 160), duration=2.0)
+                audio.play("health_pickup", 1.0)
             elif s_id == "stat_magnet":
                 self.player.base_pickup_radius += 45.0
             elif s_id == "stat_cooldown":
@@ -580,6 +616,8 @@ class Game:
                     elif event.key in (pygame.K_3, pygame.K_KP3) and len(self.level_up_options) >= 3:
                         self.apply_upgrade(self.level_up_options[2])
                         audio.play("gem", 0.9)
+                    elif event.key in (pygame.K_ESCAPE, pygame.K_0, pygame.K_KP0, pygame.K_d):
+                        self.decline_upgrade()
 
                 elif self.state == STATE_WEAPON_SWAP:
                     equipped = [w for w in self.weapons if w.unlocked and w.level > 0]
@@ -707,7 +745,9 @@ class Game:
 
 
                 elif self.state == STATE_LEVEL_UP:
-                    if self.ui.hovered_card_idx != -1 and self.ui.hovered_card_idx < len(self.level_up_options):
+                    if getattr(self.ui, "decline_btn_rect", None) and self.ui.decline_btn_rect.collidepoint(mx, my):
+                        self.decline_upgrade()
+                    elif self.ui.hovered_card_idx != -1 and self.ui.hovered_card_idx < len(self.level_up_options):
                         self.apply_upgrade(self.level_up_options[self.ui.hovered_card_idx])
                         audio.play("gem", 0.9)
 

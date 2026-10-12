@@ -1,6 +1,6 @@
 # QUAD SURVIVOR: THE PIXEL SWARM
 ## Comprehensive Player Manual & Developer Architectural Guide
-### Current Version: `v0.7.2 [BETA]`
+### Current Version: `v0.8.0 [BETA]`
 
 ---
 
@@ -138,6 +138,8 @@ To foster strategic build diversity, the Quad Core can equip a maximum of **4 ac
 1. When all 4 slots are occupied and you level up, upgrade cards for unowned weapons will display a **`NEW [SWAP]`** badge.
 2. Selecting a new weapon opens an interactive **Weapon Swap Modal**.
 3. You can choose which of your 4 existing weapons to replace, or cancel to pick a stat augment instead.
+4. **Guaranteed Stat Augment**: Every level-up roll is guaranteed to include at least 1 non-weapon Stat Augment, so you never get forced into an unwanted weapon swap.
+5. **Decline / Skip Upgrade**: If you are satisfied with your active build, click the **`[✖ DECLINE / SKIP UPGRADE]`** button (or press `[ESC]`, `[0]`, `[D]`) to skip the upgrade and receive an instant **+30 HP heal and +50 bonus XP**!
 
 ---
 
@@ -149,7 +151,7 @@ Enemies spawn outside the active screen view and pursue the player using boids-s
 2. **Triangle Scout (Red Triangle)**: Swift, agile vanguard enemy (28 HP) that points directly towards the player.
 3. **Hexagon Brute (Blue Hexagon)**: Heavily armored tank (95 HP) with high contact damage and rotating defensive geometry.
 4. **Diamond Dasher (Orange Diamond)**: Stalks the player before performing high-speed kinetic dash surges. Dashing dashers that impact solid obstacles are stunned and halted.
-5. **Colossus Boss (Giant Magenta Boss)**: Spawns at minutes 3, 6, and 9. Possesses 1,400+ HP, rotating spike rings, high knockback resistance, screen shake, and guaranteed drops (Forge Tome + Health Pack + Gold XP Gem + 35% chance for Hyper Core).
+5. **Colossus Boss (Giant Magenta Boss)**: Spawns at minutes 3, 6, and 9. Possesses 1,400+ HP, rotating spike rings, high knockback resistance, screen shake, projectile combat (fires Aimed Tri-Blasts and 8-way Spike Novas), and guaranteed drops (Forge Tome + Health Pack + Gold XP Gem + 35% chance for Hyper Core).
 
 ---
 
