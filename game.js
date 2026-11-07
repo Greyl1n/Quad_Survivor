@@ -17,8 +17,8 @@
   const WORLD_WIDTH = 3600;
   const WORLD_HEIGHT = 3600;
 
-  const GAME_VERSION = '0.8.0';
-  const GAME_VERSION_STR = 'v0.8.0 [BETA]';
+  const GAME_VERSION = '0.9.1';
+  const GAME_VERSION_STR = 'v0.9.1 [BETA]';
 
   let scale = 1.0;
   let offsetX = 0;
@@ -1428,6 +1428,10 @@
       return { hit: false, nx: 0, ny: 0 };
     }
 
+    isPositionBlocked(x, y, radius = 30) {
+      return this.resolveEntityCollision(x, y, radius).hit;
+    }
+
     draw(ctx, cam, genome) {
       if (this.isBossArena) {
         if (cam.isVisible(this.bossArenaCenter.x, this.bossArenaCenter.y, this.bossArenaRadius + 60)) {
@@ -1539,28 +1543,329 @@
     }
   }
 
-  // --- Dimensional Portal ---
+  // --- Shared Off-Screen Objective Beacon Helper ---
+  function drawOffscreenBeacon(ctx, cam, player, targetX, targetY, targetRadius, labelPrefix, arrowColor, textColor) {
+    if (cam.isVisible(targetX, targetY, targetRadius + 15)) return;
+
+    const viewX = (cam && cam.viewX !== undefined) ? cam.viewX : 0;
+    const viewW = (cam && cam.viewW !== undefined) ? cam.viewW : V_WIDTH;
+    const viewH = (cam && cam.viewH !== undefined) ? cam.viewH : V_HEIGHT;
+
+    const sx = cam.worldToScreenX(targetX);
+    const sy = cam.worldToScreenY(targetY);
+    const margin = 48;
+
+    const cx = viewX + viewW / 2;
+    const cy = viewH / 2;
+    const dx = sx - cx;
+    const dy = sy - cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 0.001) return;
+
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    const boundX = viewW / 2 - margin;
+    const boundY = viewH / 2 - margin;
+
+    const scaleX = nx !== 0 ? Math.abs(boundX / nx) : Infinity;
+    const scaleY = ny !== 0 ? Math.abs(boundY / ny) : Infinity;
+    const scale = Math.min(scaleX, scaleY);
+
+    const px = cx + nx * scale;
+    const py = cy + ny * scale;
+    const angle = Math.atan2(ny, nx);
+    const worldDist = Math.round(Math.hypot(targetX - player.x, targetY - player.y) / 10);
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(angle);
+
+    ctx.fillStyle = arrowColor;
+    ctx.beginPath();
+    ctx.moveTo(14, 0);
+    ctx.lineTo(-10, -9);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(-10, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = 'bold 12px Consolas';
+    ctx.textAlign = 'center';
+    const tagText = `${labelPrefix} [${worldDist}m]`;
+    let tx = px;
+    let ty = py + (ny > 0 ? 18 : -14);
+
+    const minX = viewX + 45;
+    const maxX = viewX + viewW - 45;
+    tx = Math.max(minX, Math.min(maxX, tx));
+    ty = Math.max(14, Math.min(viewH - 14, ty));
+
+    const textMetrics = ctx.measureText(tagText);
+    const tw = textMetrics.width;
+    ctx.fillStyle = 'rgba(16, 14, 28, 0.85)';
+    ctx.fillRect(tx - tw / 2 - 5, ty - 11, tw + 10, 16);
+    ctx.strokeStyle = arrowColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tx - tw / 2 - 5, ty - 11, tw + 10, 16);
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(tagText, tx, ty);
+    ctx.restore();
+  }
+
+  // --- Quantum Key (Stage 1 of Biome Progression) ---
+  class PortalKey {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 24;
+      this.rot = 0;
+      this.bobPhase = 0;
+      this.collected = false;
+    }
+
+    update(dt, player) {
+      if (this.collected) return false;
+      this.rot += 2.6 * dt;
+      this.bobPhase += 4.2 * dt;
+      const dist = Math.hypot(player.x - this.x, player.y - this.y);
+      if (dist <= this.radius + player.radius + 6) {
+        this.collected = true;
+        return true;
+      }
+      return false;
+    }
+
+    draw(ctx, cam) {
+      if (this.collected || !cam.isVisible(this.x, this.y, 90)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+      const bobY = sy + Math.sin(this.bobPhase) * 4.5;
+
+      ctx.save();
+      const pulse = 1.0 + 0.14 * Math.sin(this.bobPhase * 1.5);
+      const auraR = this.radius * 1.45 * pulse;
+
+      // Golden aura
+      ctx.fillStyle = 'rgba(255, 210, 40, 0.18)';
+      ctx.beginPath();
+      ctx.arc(sx, bobY, auraR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Rotating diamond containment frame
+      const rFrame = this.radius * 1.05 * pulse;
+      ctx.strokeStyle = '#ffe150';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a = this.rot + i * (Math.PI / 2);
+        const px = sx + Math.cos(a) * rFrame;
+        const py = bobY + Math.sin(a) * rFrame;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Cyber-Key silhouette
+      const bowX = sx - 6;
+      const bowY = bobY;
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(bowX, bowY, 7, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(bowX, bowY, 3, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Shaft & teeth
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(bowX + 6, bowY);
+      ctx.lineTo(sx + 11, bowY);
+      ctx.moveTo(sx + 6, bowY);
+      ctx.lineTo(sx + 6, bowY + 6);
+      ctx.moveTo(sx + 10, bowY);
+      ctx.lineTo(sx + 10, bowY + 5);
+      ctx.stroke();
+
+      // Floating label
+      ctx.font = 'bold 11px Consolas';
+      ctx.fillStyle = '#ffeb6e';
+      ctx.textAlign = 'center';
+      ctx.fillText('QUANTUM KEY', sx, sy - 32);
+      ctx.restore();
+    }
+
+    drawCompass(ctx, cam, player) {
+      if (this.collected) return;
+      drawOffscreenBeacon(ctx, cam, player, this.x, this.y, this.radius, 'KEY', '#ffd700', '#fff096');
+    }
+  }
+
+  // --- Portal Console (Stage 2 of Biome Progression) ---
+  class PortalConsole {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 32;
+      this.rot = 0;
+      this.pulse = 0;
+      this.activated = false;
+      this.lockedMsgCooldown = 0;
+    }
+
+    update(dt, player, hasKey) {
+      this.rot += 1.6 * dt;
+      this.pulse += 4.0 * dt;
+      if (this.lockedMsgCooldown > 0) this.lockedMsgCooldown -= dt;
+      if (this.activated) return null;
+
+      const dist = Math.hypot(player.x - this.x, player.y - this.y);
+      if (dist <= this.radius + player.radius + 8) {
+        if (hasKey) {
+          this.activated = true;
+          return 'ACTIVATED';
+        } else if (this.lockedMsgCooldown <= 0) {
+          this.lockedMsgCooldown = 2.8;
+          return 'LOCKED_PROMPT';
+        }
+      }
+      return null;
+    }
+
+    draw(ctx, cam, hasKey) {
+      if (!cam.isVisible(this.x, this.y, 100)) return;
+      const sx = cam.worldToScreenX(this.x);
+      const sy = cam.worldToScreenY(this.y);
+
+      let primaryCol = '#ff5f41';
+      let accentCol = '#ffb478';
+      let auraRgba = 'rgba(255, 95, 65, 0.16)';
+      let statusText = 'CONSOLE [LOCKED]';
+
+      if (this.activated) {
+        primaryCol = '#00dcff';
+        accentCol = '#8cffff';
+        auraRgba = 'rgba(0, 220, 255, 0.16)';
+        statusText = 'CONSOLE [ONLINE]';
+      } else if (hasKey) {
+        primaryCol = '#00ffaa';
+        accentCol = '#b4ffdc';
+        auraRgba = 'rgba(0, 255, 170, 0.18)';
+        statusText = 'INSERT KEY [READY]';
+      }
+
+      ctx.save();
+      const pulseScale = 1.0 + 0.10 * Math.sin(this.pulse);
+      const auraR = this.radius * 1.35 * pulseScale;
+      ctx.fillStyle = auraRgba;
+      ctx.beginPath();
+      ctx.arc(sx, sy, auraR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Octagonal pedestal base
+      ctx.fillStyle = '#121826';
+      ctx.strokeStyle = primaryCol;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4 + Math.PI / 8;
+        const px = sx + Math.cos(a) * this.radius;
+        const py = sy + Math.sin(a) * this.radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Rotating inner hexagon ring
+      const rInner = this.radius * 0.72;
+      ctx.strokeStyle = accentCol;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = this.rot + (i * Math.PI) / 3;
+        const px = sx + Math.cos(a) * rInner;
+        const py = sy + Math.sin(a) * rInner;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // Central terminal screen housing
+      const scrW = 24;
+      const scrH = 18;
+      ctx.fillStyle = '#0a0e18';
+      ctx.strokeStyle = primaryCol;
+      ctx.lineWidth = 2;
+      ctx.fillRect(sx - scrW / 2, sy - scrH / 2, scrW, scrH);
+      ctx.strokeRect(sx - scrW / 2, sy - scrH / 2, scrW, scrH);
+
+      // Keyhole indicator inside screen
+      ctx.fillStyle = accentCol;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = accentCol;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + 1);
+      ctx.lineTo(sx, sy + 5);
+      ctx.stroke();
+
+      ctx.font = 'bold 11px Consolas';
+      ctx.fillStyle = accentCol;
+      ctx.textAlign = 'center';
+      ctx.fillText(statusText, sx, sy - this.radius - 10);
+      ctx.restore();
+    }
+
+    drawCompass(ctx, cam, player, hasKey) {
+      if (this.activated || !hasKey) return;
+      drawOffscreenBeacon(ctx, cam, player, this.x, this.y, this.radius, 'CONSOLE', '#00ffaa', '#beffe6');
+    }
+  }
+
+  // --- Dimensional Portal (Stage 3 of Biome Progression) ---
   class DimensionalPortal {
-    constructor(x, y, duration = 60.0) {
+    constructor(x, y, duration = 9999.0, warmup = 0.65) {
       this.x = x;
       this.y = y;
       this.radius = 45;
       this.duration = duration;
+      this.warmup = warmup;
       this.rot = 0;
       this.active = true;
     }
 
     update(dt, player) {
+      if (this.warmup > 0) this.warmup -= dt;
       this.duration -= dt;
       this.rot += 2.8 * dt;
       if (this.duration <= 0) {
         this.active = false;
         return false;
       }
-      const dist = Math.hypot(player.x - this.x, player.y - this.y);
-      if (dist <= this.radius + player.radius) {
-        this.active = false;
-        return true; // Trigger warp
+      if (this.warmup <= 0) {
+        const dist = Math.hypot(player.x - this.x, player.y - this.y);
+        if (dist <= this.radius + player.radius) {
+          this.active = false;
+          return true; // Trigger warp
+        }
       }
       return false;
     }
@@ -1592,81 +1897,7 @@
     }
 
     drawCompass(ctx, cam, player) {
-      if (cam.isVisible(this.x, this.y, 40)) return;
-
-      const viewX = (cam && cam.viewX !== undefined) ? cam.viewX : 0;
-      const viewW = (cam && cam.viewW !== undefined) ? cam.viewW : V_WIDTH;
-      const viewH = (cam && cam.viewH !== undefined) ? cam.viewH : V_HEIGHT;
-
-      const sx = cam.worldToScreenX(this.x);
-      const sy = cam.worldToScreenY(this.y);
-      const margin = 48;
-
-      const cx = viewX + viewW / 2;
-      const cy = viewH / 2;
-      const dx = sx - cx;
-      const dy = sy - cy;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 0.001) return;
-
-      const nx = dx / dist;
-      const ny = dy / dist;
-
-      // Intersect with active viewport edge bounds
-      const boundX = viewW / 2 - margin;
-      const boundY = viewH / 2 - margin;
-
-      const scaleX = nx !== 0 ? Math.abs(boundX / nx) : Infinity;
-      const scaleY = ny !== 0 ? Math.abs(boundY / ny) : Infinity;
-      const scale = Math.min(scaleX, scaleY);
-
-      const px = cx + nx * scale;
-      const py = cy + ny * scale;
-      const angle = Math.atan2(ny, nx);
-      const worldDist = Math.round(Math.hypot(this.x - player.x, this.y - player.y) / 10);
-
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(angle);
-
-      // Neon arrow
-      ctx.fillStyle = '#ff20c0';
-      ctx.beginPath();
-      ctx.moveTo(14, 0);
-      ctx.lineTo(-10, -9);
-      ctx.lineTo(-5, 0);
-      ctx.lineTo(-10, 9);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.restore();
-
-      // Distance tag
-      ctx.save();
-      ctx.font = 'bold 12px Consolas';
-      ctx.textAlign = 'center';
-      const tagText = `PORTAL [${worldDist}m]`;
-      let tx = px;
-      let ty = py + (ny > 0 ? 18 : -14);
-
-      // Clamp text inside active viewport
-      const minX = viewX + 45;
-      const maxX = viewX + viewW - 45;
-      tx = Math.max(minX, Math.min(maxX, tx));
-      ty = Math.max(14, Math.min(viewH - 14, ty));
-
-      // Faint backing for readability
-      const textMetrics = ctx.measureText(tagText);
-      const tw = textMetrics.width;
-      ctx.fillStyle = 'rgba(20, 10, 30, 0.8)';
-      ctx.fillRect(tx - tw / 2 - 4, ty - 10, tw + 8, 14);
-
-      ctx.fillStyle = '#ff60d0';
-      ctx.fillText(tagText, tx, ty);
-      ctx.restore();
+      drawOffscreenBeacon(ctx, cam, player, this.x, this.y, this.radius, 'PORTAL', '#ff20c0', '#ff60d0');
     }
   }
 
@@ -4372,6 +4603,60 @@
       this.reset();
     }
 
+    spawnBiomeKeyAndConsole() {
+      // Combined 2-minute (120s) variable delay:
+      // Key spawns after T1 in [45s, 85s] (e.g. 1m 20s = 80s), Console spawns (120 - T1)s after Key appears (e.g. 40s later)
+      this.portal = null;
+      this.portalKey = null;
+      this.portalConsole = null;
+      this.hasPortalKey = false;
+      this.keySpawnTimer = 45 + Math.random() * 40;
+      this.consoleSpawnTimer = 120 - this.keySpawnTimer;
+    }
+
+    spawnBiomeKey() {
+      let kx = WORLD_WIDTH * 0.25;
+      let ky = WORLD_HEIGHT * 0.25;
+      for (let i = 0; i < 30; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 520 + Math.random() * 440;
+        const candX = Math.max(220, Math.min(WORLD_WIDTH - 220, this.player.x + Math.cos(ang) * dist));
+        const candY = Math.max(220, Math.min(WORLD_HEIGHT - 220, this.player.y + Math.sin(ang) * dist));
+        if (!this.obstacles || !this.obstacles.isPositionBlocked(candX, candY, 45)) {
+          kx = candX;
+          ky = candY;
+          break;
+        }
+      }
+      this.portalKey = new PortalKey(kx, ky);
+      audio.play('gem', 0.9);
+      this.particles.spawnShockwave(kx, ky, 200, '#ffd700');
+      this.particles.spawnText(this.player.x, this.player.y - 65, '🔑 QUANTUM KEY SIGNAL DETECTED!', '#ffe150', 3.2, true);
+    }
+
+    spawnBiomeConsole() {
+      let cx = WORLD_WIDTH * 0.75;
+      let cy = WORLD_HEIGHT * 0.75;
+      const refX = this.portalKey ? this.portalKey.x : this.player.x;
+      const refY = this.portalKey ? this.portalKey.y : this.player.y;
+      for (let i = 0; i < 35; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 560 + Math.random() * 490;
+        const candX = Math.max(220, Math.min(WORLD_WIDTH - 220, this.player.x + Math.cos(ang) * dist));
+        const candY = Math.max(220, Math.min(WORLD_HEIGHT - 220, this.player.y + Math.sin(ang) * dist));
+        if (Math.hypot(candX - refX, candY - refY) < 520) continue;
+        if (!this.obstacles || !this.obstacles.isPositionBlocked(candX, candY, 55)) {
+          cx = candX;
+          cy = candY;
+          break;
+        }
+      }
+      this.portalConsole = new PortalConsole(cx, cy);
+      audio.play('crescent_pulse', 0.85);
+      this.particles.spawnShockwave(cx, cy, 240, '#00ffb4');
+      this.particles.spawnText(this.player.x, this.player.y - 65, '🖥️ PORTAL CONSOLE MATERIALIZED!', '#00ffbe', 3.2, true);
+    }
+
     reset() {
       this.genome = getInitialGenome();
       this.completedGenomes = 0;
@@ -4379,6 +4664,9 @@
       this.activeBoss = null;
       this.bossProjectiles = [];
       this.portal = null;
+      this.portalKey = null;
+      this.portalConsole = null;
+      this.hasPortalKey = false;
       this.portalTimer = 45 + Math.random() * 20;
       this.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
       this.player.applyGenome(this.genome);
@@ -4395,6 +4683,7 @@
       this.obstacles = new ObstacleManager(this.genome, this.player.x, this.player.y);
       this.spawner = new WaveSpawner(this.difficulty);
       this.projectiles = [];
+      this.spawnBiomeKeyAndConsole();
       this.lastRank = -1;
       this.scoreRecorded = false;
       this.optionsOpen = false;
@@ -5074,8 +5363,7 @@
       this.particles.spawnShockwave(this.player.x, this.player.y, 450, this.genome.obstacle_border);
       this.particles.spawnText(this.player.x, this.player.y - 50, `DIMENSIONAL SHIFT: ${this.genome.name}`, this.genome.obstacle_accent, 3.0, true);
 
-      this.portal = null;
-      this.portalTimer = 65 + Math.random() * 30;
+      this.spawnBiomeKeyAndConsole();
     }
 
     enterBossLevel() {
@@ -5108,6 +5396,9 @@
       this.particles.spawnText(this.player.x, this.player.y - 70, '⚠️ BOSS LEVEL: THE OCTAGON ARENA', '#ff2d5f', 4.0, true);
 
       this.portal = null;
+      this.portalKey = null;
+      this.portalConsole = null;
+      this.hasPortalKey = false;
     }
 
     exitBossLevel() {
@@ -5128,8 +5419,7 @@
       this.particles.spawnShockwave(this.player.x, this.player.y, 450, this.genome.obstacle_border);
       this.particles.spawnText(this.player.x, this.player.y - 50, `DIMENSIONAL GATEWAY: ${this.genome.name}`, this.genome.obstacle_accent, 3.0, true);
 
-      this.portal = null;
-      this.portalTimer = 55 + Math.random() * 25;
+      this.spawnBiomeKeyAndConsole();
     }
 
     update(dt) {
@@ -5154,21 +5444,66 @@
         this.player.update(dt, this.obstacles);
         this.cam.update(this.player.x, this.player.y, dt);
 
-        // Dimensional Portal
+        // Dimensional Portal Progression (Quantum Key -> Portal Console -> Dimensional Portal)
         if (!this.portal) {
           if (!this.isBossLevel) {
-            this.portalTimer -= dt;
-            if (this.portalTimer <= 0) {
-              const a = Math.random() * Math.PI * 2;
-              const dist = 450 + Math.random() * 400;
-              const px = Math.max(180, Math.min(WORLD_WIDTH - 180, this.player.x + Math.cos(a) * dist));
-              const py = Math.max(180, Math.min(WORLD_HEIGHT - 180, this.player.y + Math.sin(a) * dist));
-              this.portal = new DimensionalPortal(px, py, 60);
-              this.particles.spawnText(this.player.x, this.player.y - 70, 'DIMENSIONAL ANOMALY DETECTED!', '#ff50dc', 3.5, true);
-              audio.play('crescent_pulse', 0.9);
+            // 1. Delayed Quantum Key spawn & pickup
+            if (!this.portalKey) {
+              this.keySpawnTimer -= dt;
+              if (this.keySpawnTimer <= 0) {
+                this.spawnBiomeKey();
+              }
+            } else {
+              // Once the Key has appeared, count down the remainder of the 2-minute budget for the Console
+              if (!this.portalConsole) {
+                this.consoleSpawnTimer -= dt;
+                if (this.consoleSpawnTimer <= 0) {
+                  this.spawnBiomeConsole();
+                }
+              }
+
+              if (!this.portalKey.collected) {
+                if (this.portalKey.update(dt, this.player)) {
+                  this.hasPortalKey = true;
+                  audio.play('level_up', 0.9);
+                  this.particles.spawnShockwave(this.portalKey.x, this.portalKey.y, 230, '#ffd700');
+                  const msg = this.portalConsole ? '🔑 QUANTUM KEY ACQUIRED! LOCATE CONSOLE!' : '🔑 QUANTUM KEY ACQUIRED! AWAITING CONSOLE...';
+                  this.particles.spawnText(this.player.x, this.player.y - 65, msg, '#ffe150', 3.2, true);
+                }
+              }
+            }
+
+            // 2. Check Portal Console interaction
+            if (this.portalConsole && !this.portalConsole.activated) {
+              const cState = this.portalConsole.update(dt, this.player, this.hasPortalKey);
+              if (cState === 'ACTIVATED') {
+                let px = this.portalConsole.x;
+                let py = this.portalConsole.y;
+                for (let attempt = 0; attempt < 16; attempt++) {
+                  const ang = attempt * (Math.PI / 8);
+                  const candX = Math.max(180, Math.min(WORLD_WIDTH - 180, this.portalConsole.x + Math.cos(ang) * 125));
+                  const candY = Math.max(180, Math.min(WORLD_HEIGHT - 180, this.portalConsole.y + Math.sin(ang) * 125));
+                  if (!this.obstacles.isPositionBlocked(candX, candY, 48)) {
+                    px = candX;
+                    py = candY;
+                    break;
+                  }
+                }
+                this.portal = new DimensionalPortal(px, py, 9999, 0.75);
+                audio.play('crescent_pulse', 0.95);
+                this.cam.shake(10, 0.45);
+                this.particles.spawnShockwave(this.portalConsole.x, this.portalConsole.y, 320, '#00ffb4');
+                this.particles.spawnShockwave(px, py, 240, '#ff50dc');
+                this.particles.spawnText(this.player.x, this.player.y - 70, 'DIMENSIONAL PORTAL OPENED!', '#00ffc8', 3.5, true);
+              } else if (cState === 'LOCKED_PROMPT') {
+                this.particles.spawnText(this.portalConsole.x, this.portalConsole.y - 55, '🔒 CONSOLE LOCKED: FIND QUANTUM KEY FIRST!', '#ff6e50', 2.2, true);
+              }
             }
           }
         } else {
+          if (this.portalConsole) {
+            this.portalConsole.update(dt, this.player, this.hasPortalKey);
+          }
           const entered = this.portal.update(dt, this.player);
           if (entered) {
             if (this.isBossLevel) {
@@ -5183,8 +5518,7 @@
             }
           } else if (!this.portal.active) {
             if (!this.isBossLevel) {
-              this.portal = null;
-              this.portalTimer = 55 + Math.random() * 30;
+              this.spawnBiomeKeyAndConsole();
             }
           }
         }
@@ -5370,6 +5704,8 @@
         // World
         this.cam.drawBackground(ctx, this.genome);
         this.obstacles.draw(ctx, this.cam, this.genome);
+        if (this.portalConsole) this.portalConsole.draw(ctx, this.cam, this.hasPortalKey);
+        if (this.portalKey && !this.portalKey.collected) this.portalKey.draw(ctx, this.cam);
         if (this.portal) this.portal.draw(ctx, this.cam);
         this.spawner.draw(ctx, this.cam);
 
@@ -5382,7 +5718,16 @@
         this.player.draw(ctx, this.cam);
         this.particles.draw(ctx, this.cam);
 
-        if (this.portal) this.portal.drawCompass(ctx, this.cam, this.player);
+        // Off-screen Objective Compass Beacon (Key -> Console -> Portal)
+        if (this.portal) {
+          this.portal.drawCompass(ctx, this.cam, this.player);
+        } else if (!this.isBossLevel) {
+          if (this.portalKey && !this.portalKey.collected) {
+            this.portalKey.drawCompass(ctx, this.cam, this.player);
+          } else if (this.portalConsole && !this.portalConsole.activated) {
+            this.portalConsole.drawCompass(ctx, this.cam, this.player, this.hasPortalKey);
+          }
+        }
         this.cam.drawWarpOverlay(ctx);
 
         // Mobile Virtual Joystick
@@ -5465,6 +5810,37 @@
         ctx.fillStyle = this.genome.obstacle_border;
         ctx.textAlign = 'center';
         ctx.fillText(`DIMENSION: ${this.genome.name} [${this.genome.code}]`, hudCx, 54);
+
+        if (!this.isBossLevel) {
+          let objText = 'OBJECTIVE: SURVIVE — SCANNING FOR KEY...';
+          let objCol = '#d2c88c';
+          if (this.portal) {
+            objText = 'OBJECTIVE: ENTER DIMENSIONAL PORTAL';
+            objCol = '#ff6ef0';
+          } else if (this.hasPortalKey) {
+            if (this.portalConsole) {
+              objText = 'OBJECTIVE: UNLOCK PORTAL CONSOLE [KEY HELD]';
+              objCol = '#00ffaf';
+            } else {
+              objText = 'OBJECTIVE: KEY HELD — AWAITING CONSOLE...';
+              objCol = '#00e1c8';
+            }
+          } else if (this.portalKey) {
+            objText = 'OBJECTIVE: LOCATE QUANTUM KEY';
+            objCol = '#ffdc50';
+          }
+          ctx.font = 'bold 11px Consolas';
+          const tw = ctx.measureText(objText).width + 14;
+          const th = 16;
+          const oy = 62;
+          ctx.fillStyle = 'rgba(14, 18, 30, 0.88)';
+          ctx.fillRect(hudCx - tw / 2, oy, tw, th);
+          ctx.strokeStyle = objCol;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(hudCx - tw / 2, oy, tw, th);
+          ctx.fillStyle = objCol;
+          ctx.fillText(objText, hudCx, oy + 12);
+        }
       }
 
       if (!isArcade) {

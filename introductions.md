@@ -1,6 +1,6 @@
 # QUAD SURVIVOR: THE PIXEL SWARM
 ## Comprehensive Player Manual & Developer Architectural Guide
-### Current Version: `v0.8.0 [BETA]`
+### Current Version: `v0.9.1 [BETA]`
 
 ---
 
@@ -168,12 +168,14 @@ The arena contains procedurally generated solid structures that alter horde path
 
 ---
 
-## 🌀 Dimensional Portals & The 6 Level Genomes
+## 🌀 Dimensional Portals, Quantum Keys & The 6 Level Genomes
 
-At regular intervals, a swirling **Dimensional Portal** anomaly manifests in the arena:
-- **Radar Compass**: When the portal is off-screen, a directional arrow and distance readout (`PORTAL [Xm]`) appear on the screen boundary, cleanly clamped within the active 16:9 or 3:4 CRT view.
-- **Entering the Portal**:
-  - Triggers a **Dimensional Warp Jump** with screen shake, warp flash, and an explosive purge turning basic enemies into XP gems.
+Each standard biome features an interactive **3-Stage Progression Objective** to unlock the Dimensional Portal:
+- **1. Locate Quantum Key (`KEY [Xm]`)**: A golden **Quantum Key** spawns at a random unobstructed coordinate in the arena. Follow the golden off-screen compass arrow to collect it.
+- **2. Unlock Portal Console (`CONSOLE [Xm]`)**: Once you hold the Key, follow the emerald/cyan compass arrow to the **Portal Console** (spawned at another random location) and touch it to unlock the dimensional rift.
+- **3. Enter the Portal (`PORTAL [Xm]`)**:
+  - Activating the console opens the swirling **Dimensional Portal** right beside it.
+  - Stepping into the portal triggers a **Dimensional Warp Jump** with screen shake, warp flash, and an explosive purge turning basic enemies into XP gems.
   - Mutates the arena into a new **Level Genome**, altering colors, environmental mutators, and procedurally regenerating obstacles.
 
 | Genome | Code | Palette Theme | Mutator Effect |

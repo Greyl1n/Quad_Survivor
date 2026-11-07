@@ -82,7 +82,7 @@ class UIManager:
         if self.warp_banner_timer > 0:
             self.warp_banner_timer -= dt
 
-    def draw_hud(self, surface, player, game_time, weapons, genome=None, difficulty="NORMAL", aspect_mode="16:9", boss=None):
+    def draw_hud(self, surface, player, game_time, weapons, genome=None, difficulty="NORMAL", aspect_mode="16:9", boss=None, objective_text=None, objective_color=None):
         is_arcade = (aspect_mode == "3:4")
         vx = 370 if is_arcade else 0
         vw = 540 if is_arcade else SCREEN_WIDTH
@@ -153,6 +153,17 @@ class UIManager:
             if not is_arcade:
                 mut_surf = self.font_small.render(genome.mutator_desc, True, (210, 220, 240))
                 surface.blit(mut_surf, (center_x - mut_surf.get_width() // 2, 70))
+
+            if objective_text:
+                obj_y = 72 if is_arcade else 88
+                obj_col = objective_color or (255, 220, 80)
+                obj_surf = self.font_small.render(objective_text, True, obj_col)
+                pill_w = obj_surf.get_width() + 14
+                pill_h = obj_surf.get_height() + 4
+                pill_rect = pygame.Rect(center_x - pill_w // 2, obj_y - 2, pill_w, pill_h)
+                pygame.draw.rect(surface, (14, 18, 30), pill_rect, border_radius=4)
+                pygame.draw.rect(surface, obj_col, pill_rect, 1, border_radius=4)
+                surface.blit(obj_surf, (center_x - obj_surf.get_width() // 2, obj_y))
 
         # 4. In-Game Menu Button & Badges
         m_pos = pygame.mouse.get_pos()

@@ -66,14 +66,15 @@ The arena contains solid geometric structures that provide tactical cover and sh
 
 ---
 
-## 🌀 Dimensional Portals & Level Genomes
+## 🌀 Dimensional Portals, Quantum Keys & Level Genomes
 
-Periodically, a swirling **Dimensional Portal Anomaly** will appear in the world:
-- **Off-Screen Beacon**: When a portal spawns out of view, a directional radar arrow on the screen edge tracks its distance (`PORTAL [320m] ➔`), guiding you directly to it. Fully calibrated in both standard 16:9 and authentic 3:4 Arcade Cabinet modes (projected cleanly inside the active CRT display, never hidden behind cabinet bezels).
-- **Entering the Portal**:
-  - Triggers a **Dimensional Warp Jump** with screen-wide warp flash, whoosh sound, and shockwave that vaporizes standard enemies into bonus XP gems!
-  - Mutates the arena's **GENOME**, completely altering the dimension's visual theme, colors, and physical rules.
-  - **Re-generates all obstacles** procedurally on the fly, clearing a safe zone around your current position.
+To advance to the next biome, players complete an interactive **3-Stage Biome Progression Objective**:
+1. **Stage 1 — Locate Quantum Key (`KEY [XXm]`)**: Each biome spawns a glowing golden **Quantum Key** at a random unobstructed coordinate in the arena, tracked by an off-screen golden compass arrow and HUD objective pill (`OBJECTIVE: LOCATE QUANTUM KEY`).
+2. **Stage 2 — Unlock Portal Console (`CONSOLE [XXm]`)**: Once the Key is collected, the off-screen radar shifts to an emerald/cyan beacon guiding you to the **Portal Console** (spawned at another random location). Touching the locked console with the Key unlocks the terminal (`OBJECTIVE: UNLOCK PORTAL CONSOLE [KEY HELD]`).
+3. **Stage 3 — Enter Dimensional Portal (`PORTAL [XXm]`)**: Activating the console unleashes an energy shockwave and opens the swirling **Dimensional Portal** right beside the terminal (`OBJECTIVE: ENTER DIMENSIONAL PORTAL`):
+   - Triggers a **Dimensional Warp Jump** with screen-wide warp flash, whoosh sound, and shockwave that vaporizes standard enemies into bonus XP gems!
+   - Mutates the arena's **GENOME**, completely altering the dimension's visual theme, colors, and physical rules.
+   - **Re-generates all obstacles** procedurally on the fly, clearing a safe zone around your current position, and spawns a fresh Key and Console for the new biome.
 
 ### 🧬 Genome Catalog & Environmental Mutators
 
@@ -382,20 +383,22 @@ Quad Survivor uses semantic versioning in the format `0.MAJOR.PATCH` during its 
   6. Expanded 12 blueprint weapon arsenal & 4-weapon tactical swap modal (`0.6.0`)
   7. Boss loot progression (Overclock Matrix / Hyper Core) and reward rebalancing (`0.7.0`)
   8. Upgrade Choice Flexibility (Decline/Skip Option, Guaranteed Stat Augments) & Colossus Boss Projectile Attacks (`0.8.0`)
+  9. 3-Stage Biome Progression Objective: Quantum Key, Portal Console & Dimensional Portal (`0.9.0`)
 - `PATCH` (Last digit): Refinement iterations and bug fixes:
   - **.1**: Supernova Bomb audio smoothing (eliminated speaker distortion) & drop rate rarity tuning.
   - **.2**: Restored Octagon Boss projectile attacks (fixed obstacle collision truthiness bug in `game.js`), added projectile spawn offsets, and integrated unified version numbering across all platforms.
 
-### Current Version: `v0.8.0 [BETA]`
+### Current Version: `v0.9.1 [BETA]`
 
-#### What's New in `v0.8.0`:
-- **Upgrade Flexibility & Decline Option**:
-  - Added an interactive **`[✖ DECLINE / SKIP UPGRADE]`** option on the Level-Up screen (`[ESC]`, `[0]`, `[D]`, or click/tap).
-  - Declining grants an instant **+30 HP heal and +50 bonus XP** consolation reward!
-  - **Guaranteed Non-Weapon Upgrade**: Each level-up roll is now guaranteed to include at least 1 Stat Augment, so players who already like their 4 equipped weapons are never forced into unwanted weapon swaps.
-  - Added new **`Nanite Repair`** utility card (+60 HP instant repair).
-- **Intimidating Colossus Boss Projectile Attacks**:
-  - The 3-minute Colossus Boss now fires 2 intimidating projectile attack routines:
-    1. **Aimed Tri-Blast**: 3 heavy magenta energy orbs launched in a spread toward the player.
-    2. **Spike Nova**: 8 radial energy spikes launched outward from its rotating perimeter spikes.
+#### What's New in `v0.9.1` & `v0.9.0`:
+- **3-Stage Biome Progression Objective with 2-Minute Combined Delay (`Quantum Key ➔ Portal Console ➔ Dimensional Portal`)**:
+  - Instead of portals appearing directly on a single timer, each standard biome features a **2-minute (`120s`) combined variable spawn schedule** for the **🔑 Quantum Key** and **🖥️ Portal Console**:
+    - The **Quantum Key** appears after a variable delay $T_1 \in [45\text{s}, 85\text{s}]$ (e.g., at `1m 20s` / `80s`).
+    - The **Portal Console** materializes $T_2 = (120\text{s} - T_1)$ after the Key appears (e.g., `40s` later).
+  - **Stage 1 (`KEY [XXm]`)**: Once the Key materializes, follow the golden off-screen radar arrow to find and collect the floating Quantum Key.
+  - **Stage 2 (`CONSOLE [XXm]`)**: Carry the Key across the arena to the Portal Console (guided by the emerald/cyan radar arrow) to unlock and activate the terminal.
+  - **Stage 3 (`PORTAL [XXm]`)**: Activating the console opens the swirling **Dimensional Portal** right beside it, ready to warp you into the next Level Genome (or the Octagon Boss Arena every 3rd genome).
+- **What's New in `v0.8.0`**:
+  - Added **`[✖ DECLINE / SKIP UPGRADE]`** button on the Level-Up screen (+30 HP & +50 XP reward), guaranteed at least 1 Stat Augment per roll, added **`Nanite Repair`**, and added projectile attacks (`Aimed Tri-Blast` & `Spike Nova`) to the Colossus Boss.
+
 

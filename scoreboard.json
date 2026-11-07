@@ -24,6 +24,18 @@
     "date": "2026-10-06 20:09"
   },
   {
+    "id": "run_20261020_111825_16",
+    "initials": "A9A",
+    "time": 247.6,
+    "time_str": "04:07",
+    "level": 8,
+    "kills": 425,
+    "damage_taken": 304,
+    "genome": "GLACIAL-DRIFT",
+    "difficulty": "NORMAL",
+    "date": "2026-10-20 11:18"
+  },
+  {
     "id": "starter_1",
     "time": 215.4,
     "time_str": "03:35",
